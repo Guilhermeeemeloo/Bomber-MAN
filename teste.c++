@@ -118,17 +118,17 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 		for(int j=0; j<25; j++) {
 
 			if(bomba.explosaoAtiva == true && jogo.mapa[i][j] != 1 && (i == bomba.x && j == bomba.y || i == bomba.x - 1 && j == bomba.y || i == bomba.x + 1 && j == bomba.y ||  i == bomba.x && j == bomba.y - 1 || i == bomba.x && j == bomba.y + 1)) {
-				cout << "\033[38;5;208m" << char(206) << "" << char(206) << "\033[0m";
+				cout << "💥";
 
 			}else if(i==p1.x && j==p1.y) {
 				if(p1.vivo == true){
-                    cout<< "\033[36m" << "@@";
+                    cout<< "🧔🏽‍♂️";
 				}else{
-                    cout<< "\033[37m" << "XX";
+                    cout<< "🪦";
 				}
 
 			}else if(bomba.ativa == true && i==bomba.x && j==bomba.y) {
-				cout << "\033[91m" "QQ";
+				cout << "💣";
 
 			}else{
 				bool inimigoAqui = false;
@@ -139,17 +139,17 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 				}
 
 				if(inimigoAqui == true) {
-					cout << "\033[91m" << char(33) << "" << char(33) << "\033[0m";
+					cout << "👹";
 				}else{
 					switch (jogo.mapa[i][j]) {
 					case 0:
-						cout<< "\033[32m" << char(219)<< "" << char(219);
+						cout<< "\033[42m  \033[0m";
 						break;
 					case 1:
-						cout<< "\033[37m" << char(219) << "" << char(219) << "\033[0m";
+						cout<< "\033[47m  \033[0m";
 						break;
 					case 2:
-						cout<< "\033[94m" << char(178) << "" << char(178) << "\033[0m";
+						cout<< "\033[42m🧱\033[0m";
 						break;
 					}
 				}
@@ -444,12 +444,12 @@ void imprimeTelaInicial(){
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,2,2,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,2,0,4,0,4,2,5,0,2,0,0,2,0,0,0,0,0,1,1,1,0,0,1,
-                            1,0,2,0,5,0,2,0,2,0,2,2,0,2,0,0,0,0,0,1,1,0,0,0,1,
-                            1,0,2,0,4,0,2,0,2,0,2,4,5,2,2,2,5,0,0,1,0,0,0,0,1,
-                            1,0,2,0,4,0,2,0,2,0,2,0,2,2,0,0,2,0,0,1,1,1,0,0,1,
-                            1,0,2,2,5,0,4,2,5,0,2,0,0,2,2,2,2,0,0,0,0,0,0,0,1,
+                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
@@ -463,12 +463,12 @@ void imprimeTelaInicial(){
     for(int i = 0; i < 19; i++){
             for(int j = 0; j < 25; j++){
                 switch(matTelaInicial[i][j]){
-                case 0: cout<< "\033[30m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 1: cout<< "\033[37m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 2: cout<< "\033[91m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 3: cout<< "\033[91m" << char(220) << "" << char(220) << "\033[0m"; break;
-                case 4: cout<< "\033[30m" << char(219) << "\033[91m" << char(219) << "\033[0m"; break;
-                case 5: cout<< "\033[91m" << char(219) << "\033[30m" << char(219) << "\033[0m"; break;
+                case 0: cout<< "  "; break;
+                case 1: cout<< "\033[47m  \033[0m"; break;
+                case 2: cout<< "\033[91m  \033[0m"; break;
+                case 3: cout<< "  "; break;
+                case 4: cout<< "  "; break;
+                case 5: cout<< "  "; break;
                 }
             }
             cout << "\n";
@@ -480,15 +480,15 @@ void imprimeTelaFinal(bool vencedor){
     int matGameOver[19][25] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                                1,0,4,2,2,0,0,4,2,5,0,0,2,3,3,2,0,0,2,2,2,0,0,0,1,
-                                1,0,2,0,0,0,0,2,0,2,0,0,2,4,5,2,0,0,2,3,0,0,0,0,1,
+                                1,0,4,2,2,0,0,4,2,5,0,0,2,2,2,2,0,0,2,2,2,0,0,0,1,
+                                1,0,2,0,0,0,0,2,0,2,0,0,2,4,0,2,0,0,2,3,0,0,0,0,1,
                                 1,0,2,0,3,0,0,2,2,2,0,0,2,0,0,2,0,0,2,0,0,0,0,0,1,
                                 1,0,4,2,2,0,0,2,0,2,0,0,2,0,0,2,0,0,2,2,2,0,0,0,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                                1,0,2,2,2,0,0,2,0,0,2,0,0,2,2,2,0,0,2,2,2,0,0,0,1,
-                                1,0,2,0,2,0,0,2,0,0,2,0,0,2,3,0,0,0,2,3,2,0,0,0,1,
+                                1,0,2,2,2,0,0,2,0,0,2,0,0,2,2,2,0,0,2,2,0,0,0,0,1,
+                                1,0,2,0,2,0,0,2,0,0,2,0,0,2,3,0,0,0,2,3,0,0,0,0,1,
                                 1,0,2,0,2,0,0,4,3,3,5,0,0,2,0,0,0,0,2,4,5,0,0,0,1,
                                 1,0,2,2,2,0,0,0,4,5,0,0,0,2,2,2,0,0,2,0,2,0,0,0,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
@@ -523,12 +523,12 @@ void imprimeTelaFinal(bool vencedor){
         for(int i = 0; i < 19; i++){
             for(int j = 0; j < 25; j++){
                 switch(matGameOver[i][j]){
-                case 0: cout<< "\033[30m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 1: cout<< "\033[37m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 2: cout<< "\033[91m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 3: cout<< "\033[91m" << char(220) << "" << char(220) << "\033[0m"; break;
-                case 4: cout<< "\033[30m" << char(219) << "\033[91m" << char(219) << "\033[0m"; break;
-                case 5: cout<< "\033[91m" << char(219) << "\033[30m" << char(219) << "\033[0m"; break;
+                case 0: cout<< "\033[40m  \033[0m"; break;
+                case 1: cout<< "\033[47m  \033[0m"; break;
+                case 2: cout<< "\033[101m  \033[0m"; break;
+                case 3: cout<< "\033[101m  \033[0m"; break;
+                case 4: cout<< "\033[101m  \033[0m"; break;
+                case 5: cout<< "\033[101m  \033[0m"; break;
                 }
             }
             cout << "\n";
@@ -537,18 +537,18 @@ void imprimeTelaFinal(bool vencedor){
         for(int i = 0; i < 19; i++){
             for(int j = 0; j < 25; j++){
                 switch(matWin[i][j]){
-                case 0: cout<< "\033[30m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 1: cout<< "\033[37m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 2: cout<< "\033[36m" << char(219) << "" << char(219) << "\033[0m"; break;
-                case 3: cout<< "\033[36m" << char(220) << "" << char(220) << "\033[0m"; break;
-                case 4: cout<< "\033[30m" << char(219) << "\033[36m" << char(219) << "\033[0m"; break;
-                case 5: cout<< "\033[36m" << char(219) << "\033[30m" << char(219) << "\033[0m"; break;
+                case 0: cout<< "\033[40m  \033[0m"; break;
+                case 1: cout<< "\033[47m  \033[0m"; break;
+                case 2: cout<< "\033[44m  \033[0m"; break;
+                case 3: cout<< "\033[44m  \033[0m"; break;
+                case 4: cout<< "\033[44m  \033[0m"; break;
+                case 5: cout<< "\033[44m  \033[0m"; break;
                 }
             }
             cout << "\n";
         }
     }
-    cout << "PRESSIONE ENTER PARA VOLTAR A TELA INICIAL";
+    cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
 
 
 }
@@ -611,7 +611,7 @@ void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[])
 
 }
 int main() {
-    system ("chcp 437");
+    system ("chcp 65001");
     #ifdef _WIN32
         HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_CURSOR_INFO     cursorInfo;
