@@ -752,7 +752,7 @@ int main() {
             }
     }while(opcao != 5);
 
-    cout << "\n\nOBRIGADO POR JOGAR!" << endl;
+    cout << "\n\nOBRIGADO POR JOGAR!" << endl << endl;
 
 	return 0;
 }
