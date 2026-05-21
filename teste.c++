@@ -413,14 +413,13 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
             #else
                 cout << "\033[H";
             #endif
-                        jogo.vencedor = true;
-                        imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
-            #ifdef _WIN32
-                        Sleep(1000);
-            #else
-                        usleep(1000000);
-            #endif
-                        jogo.rodando = false;
+                jogo.vencedor = true;
+                imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
+                auto inicioPausa = chrono::steady_clock::now();
+                while (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {
+
+                }
+                jogo.rodando = false;
         }
 
         if(p1.vivo == false && bomba.explosaoAtiva == false){
@@ -432,13 +431,11 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
             #else
                 cout << "\033[H";
             #endif
-                        imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
-            #ifdef _WIN32
-                        Sleep(1000);
-            #else
-                        usleep(1000000);
-            #endif
-                        jogo.rodando = false;
+                imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
+                auto inicioPausa = chrono::steady_clock::now();
+                while (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {
+                }
+                jogo.rodando = false;
         }
 }
 
@@ -752,7 +749,7 @@ int main() {
             }
     }while(opcao != 5);
 
-    cout << "\n\nOBRIGADO POR JOGAR!" << endl << endl;
+    cout << "\n\nOBRIGADO POR JOGAR!" << endl;
 
 	return 0;
 }
