@@ -552,9 +552,12 @@ void imprimeTelaFinal(bool vencedor){
         }
     }
     cout << "PRESSIONE ENTER PARA VOLTAR A TELA INICIAL";
+
+
 }
 
 void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]){
+    cout << "\033[J";
     const int mapaBase[19][25] = {
 
         {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
@@ -692,11 +695,23 @@ int main() {
 
 
                         imprimeTelaFinal(jogo.vencedor);
+
+
+                        #ifdef _WIN32
+                                SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                        #else
+                                cout << "\033[H";
+                        #endif
                         while(_kbhit()) {
                             getch();
                         }
                         cin.clear();
                         getch();
+                        #ifdef _WIN32
+                            system ("cls");
+                        #else
+                            system ("clear");
+                        #endif
                         cout << "\033[2J\033[H";
                     break;
 
