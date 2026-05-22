@@ -12,6 +12,8 @@ Guilherme Melo
 #include <ctime>
 #include <chrono>
 #include <locale.h>
+#include <fstream>
+#include <string>
 
 // multiplataforma
 #ifdef _WIN32
@@ -118,17 +120,17 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 		for(int j=0; j<25; j++) {
 
 			if(bomba.explosaoAtiva == true && jogo.mapa[i][j] != 1 && (i == bomba.x && j == bomba.y || i == bomba.x - 1 && j == bomba.y || i == bomba.x + 1 && j == bomba.y ||  i == bomba.x && j == bomba.y - 1 || i == bomba.x && j == bomba.y + 1)) {
-				cout << "💥";
+				cout << "\033[103m💥\033[0m";
 
 			}else if(i==p1.x && j==p1.y) {
 				if(p1.vivo == true){
-                    cout<< "🧔🏽‍♂️";
+                    cout<< "\033[42m🧔\033[0m";
 				}else{
-                    cout<< "🪦";
+                    cout<< "\033[42m🪦\033[0m";
 				}
 
 			}else if(bomba.ativa == true && i==bomba.x && j==bomba.y) {
-				cout << "💣";
+				cout << "\033[42m💣\033[0m";
 
 			}else{
 				bool inimigoAqui = false;
@@ -139,7 +141,7 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 				}
 
 				if(inimigoAqui == true) {
-					cout << "👹";
+					cout << "\033[42m👹";
 				}else{
 					switch (jogo.mapa[i][j]) {
 					case 0:
@@ -157,13 +159,13 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 		}
 		cout<<"\n";
 	}
-	cout << "DIFICULDADE: ";
+	cout << "\033[33mDIFICULDADE: ";
 	if(selDificuldade == 3){
-        cout << "dificil";
+        cout << "Dificil";
 	}else if(selDificuldade == 2){
-        cout << "intermediario";
+        cout << "Intermediario";
 	}else{
-        cout << "facil";
+        cout << "Facil";
 	}
 
 
@@ -173,7 +175,7 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 	int minutos = tempoDecorrido / 60;
 	int segundos = tempoDecorrido % 60;
 
-	cout << "\n\033[33m" << "TEMPO DE JOGO: ";
+	cout << "\t\033[33m" << "TEMPO DE JOGO: ";
 
 	if (minutos > 0) {
 	    cout << minutos << "m ";
@@ -185,7 +187,7 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 	}
 	cout << segundos << "s ";
 
-	cout << "\tMOVIMENTOS: " << p1.qtdMovimentos << "\033[0m";
+	cout << "\n\033[36mMOVIMENTOS: " << p1.qtdMovimentos << " | INIMIGOS ABATIDOS " << p1.inimigosAbatidos << "\nBombas " << p1.bombasUsadas << "\033[0m";
 	cout << "\033[J";
 }
 
@@ -366,6 +368,7 @@ void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Inimigo inimigos[]
 					if(inimigos[k].vivo == true) {
 						if(inimigos[k].x == bomba.x && inimigos[k].y == bomba.y || inimigos[k].x == bomba.x - 1 && inimigos[k].y == bomba.y || inimigos[k].x == bomba.x + 1 && inimigos[k].y == bomba.y || inimigos[k].x == bomba.x && inimigos[k].y == bomba.y - 1 || inimigos[k].x == bomba.x && inimigos[k].y == bomba.y + 1) {
 							inimigos[k].vivo = false;
+							p1.inimigosAbatidos++;
 						}
 					}
 				}
