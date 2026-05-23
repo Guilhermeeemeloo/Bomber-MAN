@@ -1,5 +1,5 @@
 /*
-Trabalho Bomberman - M1 - Algorítmos e Programação II
+Trabalho Bomberman - M2 - Algorítmos e Programação II
 
 Bernardo Prantz Pin
 Samuel Pereira Eduardo Santana
@@ -26,6 +26,72 @@ Guilherme Melo
 #endif
 
 using namespace std;
+
+    const int mapaFase1[19][25] = {
+
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        };
+    const int mapaFase2[19][25] = {
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+    };
+
+    const int mapaFase3[19][25] = {
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1},
+        {1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1},
+        {1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+    };
 
 const unsigned maxInimigos = 10;
 
@@ -55,6 +121,7 @@ struct Inimigo {
     bool vivo;
     int direcao;
     int passos;
+    bool boss;
 
 };
 
@@ -73,6 +140,7 @@ struct EstadoJogo {
     bool vencedor;
     unsigned inimigosAtivos;
     chrono::steady_clock::time_point tempoInicio;
+    int fase;
 };
 
 void enableANSI() {
@@ -300,26 +368,30 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
         // Só escolhe nova direção quando os passos acabam
         if(inimigos[k].passos == 0) {
 
-            if(selDificuldade == 1) {
-                // FÁCIL: sempre aleatório, sem perseguição
+            if(inimigos[k].boss == true) {
+                // BOSS: 100% perseguição sempre
+                int diffX = p1.x - inimigos[k].x;
+                int diffY = p1.y - inimigos[k].y;
+                if(abs(diffX) >= abs(diffY))
+                    inimigos[k].direcao = (diffX > 0) ? 1 : 0;
+                else
+                    inimigos[k].direcao = (diffY > 0) ? 3 : 2;
+
+            } else if(selDificuldade == 1) {
+                // FÁCIL: sempre aleatório
                 inimigos[k].direcao = rand() % 4;
 
             } else {
                 // INTERMEDIÁRIO E DIFÍCIL: sorteio de perseguição
                 int sorteio = rand() % 100;
-
                 if(sorteio < chancePerseguicao) {
-                    // MODO PERSEGUIÇÃO
                     int diffX = p1.x - inimigos[k].x;
                     int diffY = p1.y - inimigos[k].y;
-
-                    if(abs(diffX) >= abs(diffY)) {
-                        inimigos[k].direcao = (diffX > 0) ? 1 : 0; // 1=baixo, 0=cima
-                    } else {
-                        inimigos[k].direcao = (diffY > 0) ? 3 : 2; // 3=direita, 2=esquerda
-                    }
+                    if(abs(diffX) >= abs(diffY))
+                        inimigos[k].direcao = (diffX > 0) ? 1 : 0;
+                    else
+                        inimigos[k].direcao = (diffY > 0) ? 3 : 2;
                 } else {
-                    // MODO ALEATÓRIO
                     inimigos[k].direcao = rand() % 4;
                 }
             }
@@ -378,6 +450,7 @@ void inicializaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Jogador p1){
         inimigos[i].vivo = true;
         inimigos[i].direcao = 0;
         inimigos[i].passos = 0;
+        inimigos[i].boss = false;
         do{
             sorteioLinha = rand() % 19;
             sorteioColuna = rand() %  25;
@@ -480,6 +553,51 @@ void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Inimigo inimigos[]
 		}
 }
 
+void carregaMapa(EstadoJogo& jogo) {
+    const int (*mapa)[25];
+
+    if(jogo.fase == 1)      mapa = mapaFase1;
+    else if(jogo.fase == 2) mapa = mapaFase2;
+    else                    mapa = mapaFase3;
+
+    for(int i = 0; i < 19; i++)
+        for(int j = 0; j < 25; j++)
+            jogo.mapa[i][j] = mapa[i][j];
+}
+
+
+void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]) {
+    jogo.fase++;
+    carregaMapa(jogo);
+
+    // Reposiciona jogador
+    p1.x = 1;
+    p1.y = 1;
+
+    // Reseta bomba
+    bomba.ativa = false;
+    bomba.explosaoAtiva = false;
+
+    // Fase 3: apenas o boss
+    if(jogo.fase == 3) {
+        jogo.inimigosAtivos = 1;
+        inimigos[0].vivo = true;
+        inimigos[0].boss = true;
+        inimigos[0].x = 17; // spawn fixo canto oposto ao jogador
+        inimigos[0].y = 23;
+        inimigos[0].passos = 0;
+        inimigos[0].direcao = 0;
+    } else {
+        // Fase 2: inimigos normais
+        for(int k = 0; k < jogo.inimigosAtivos; k++)
+            inimigos[k].boss = false;
+        sorteiaFrageis(jogo, p1);
+        inicializaInimigos(jogo, inimigos, p1);
+    }
+
+    jogo.tempoInicio = chrono::steady_clock::now();
+}
+
 // procedimento para verificar se as condicoes de vitoria ou derrota foram atingidas
 void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade){
 
@@ -495,22 +613,27 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
         }
 
         if(inimigosMortos == jogo.inimigosAtivos && bomba.explosaoAtiva == false){
-            #ifdef _WIN32
-                COORD coord;
-                coord.X = 0;
-                coord.Y = 0;
-                SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-            #else
-                cout << "\033[H";
-            #endif
+            if(jogo.fase < 3) {
+                // ainda tem fases — avança para a próxima
+                avancaFase(jogo, p1, bomba, inimigos);
+            } else {
+                // fase 3 concluída — vitória final
+                #ifdef _WIN32
+                    COORD coord;
+                    coord.X = 0;
+                    coord.Y = 0;
+                    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                #else
+                    cout << "\033[H";
+                #endif
                 jogo.vencedor = true;
                 imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
                 auto inicioPausa = chrono::steady_clock::now();
                 while (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {
-
                 }
                 jogo.rodando = false;
-        }
+            }
+}
 
         if(p1.vivo == false && bomba.explosaoAtiva == false){
             #ifdef _WIN32
@@ -672,34 +795,10 @@ void salvaRanking(Jogador p1, EstadoJogo jogo){
 void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]){
     cout << "\033[J";
     p1.caixasDestruidas = 0;
-    const int mapaBase[19][25] = {
 
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-        };
 
-    for (int i = 0; i < 19; i++) {
-        for (int j = 0; j < 25; j++) {
-            jogo.mapa[i][j] = mapaBase[i][j];
-        }
-    }
+    jogo.fase=1;
+    carregaMapa(jogo);
 
     jogo.rodando = true;
     jogo.vencedor = false;
@@ -917,19 +1016,15 @@ int main() {
                     cout << "    A cada 50 movimentos  -> -5%% (maximo -40%%)\n";
 
                     cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
-                    while(_kbhit()) {
+                    while(_kbhit()) { getch(); }
+                        cin.clear();
                         getch();
-                    }
-                    cin.clear();
-                    getch();
-
                     #ifdef _WIN32
                         system("cls");
                     #else
                         system("clear");
                     #endif
                         cout << "\033[2J\033[H";
-
                     break;
                 case 4:
                     #ifdef _WIN32
