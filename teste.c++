@@ -95,6 +95,13 @@ using namespace std;
 
 const unsigned maxInimigos = 10;
 
+template <typename T>
+void troca(T& a, T& b) {
+    T temporario = a;
+    a = b;
+    b = temporario;
+}
+
 struct Jogador {
     int x;
     int y;
@@ -1053,12 +1060,11 @@ int main() {
                         for(int i = 0; i < totalJogadores - 1; i++){
                             for(int j = 0; j < totalJogadores - i - 1; j++){
                                 if(lista[j].pontosJogador < lista[j+1].pontosJogador){
-                                    temp = lista[j];
-                                    lista[j] = lista[j+1];
-                                    lista[j+1] = temp;
+                                    troca(lista[j], lista[j+1]); // O Template agindo aqui!
                                 }
                             }
                         }
+
                         cout << "DATA\t\tNOME\tBOMBAS\tMOVIMENTOS\tTEMPO\tPONTOS\n";
                         for(int i = 0; i < totalJogadores; i++){
                             int minutos = lista[i].tempoPartida / 60;
