@@ -147,7 +147,7 @@ double calculaPontuacao(Jogador& p1) {
 }
 
 // procedimento para desenhar o mapa do jogo
-void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade) {
+void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade = 1) {
 
 	for(int i=0; i<19; i++) {
 		for(int j=0; j<25; j++) {
@@ -529,7 +529,7 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
         }
 }
 
-void imprimeTelaInicial(){
+void imprimeTela(){
     int matTelaInicial[19][25] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                             1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
@@ -566,7 +566,7 @@ void imprimeTelaInicial(){
 
 }
 // procedimento que desenha a tela final
-void imprimeTelaFinal(bool vencedor){
+void imprimeTela(bool vencedor){
     int matGameOver[19][25] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
@@ -768,7 +768,7 @@ int main() {
                 cout << "\033[H";
         #endif
 
-            imprimeTelaInicial();
+            imprimeTela();
             cout << "\033[J";
             cout << "\n1- Jogar \n2- Selecionar dificuldade \n3- Info \n4- Ranking \n5- Fechar o Jogo" << endl;
             cin >> opcao;
@@ -813,7 +813,7 @@ int main() {
                     #endif
 
 
-                        imprimeTelaFinal(jogo.vencedor);
+                        imprimeTela(jogo.vencedor);
                         salvaRanking(p1, jogo);
                         cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
 
@@ -846,7 +846,7 @@ int main() {
                             cout << "\033[H";
                         #endif
 
-                        imprimeTelaInicial();
+                        imprimeTela();
                         cout << "\033[J";
 
 
@@ -877,7 +877,7 @@ int main() {
                         cout << "\033[H";
                     #endif
 
-                    imprimeTelaInicial();
+                    imprimeTela();
                     cout << "\033[J";
 
                     cout << "\n\033[36m===\t COMO JOGAR\t===\033[0m\n\n";
@@ -937,7 +937,7 @@ int main() {
                     #else
                         cout << "\033[H";
                     #endif
-                        imprimeTelaInicial();
+                        imprimeTela();
                         cout << "\033[J";
                         cout << "\n\033[36m===\t RANKING\t  ===\033[0m\n\n";
 
