@@ -1,4 +1,3 @@
-
 /*
 Trabalho Bomberman - M1 - Algorítmos e Programação II
 
@@ -41,7 +40,10 @@ struct Jogador {
 };
 
 struct pRanking {
+    string data;
     string nomeJogador;
+    int movimentos;
+    int bombasUsadas;
     int pontosJogador;
     int tempoPartida;
 };
@@ -624,6 +626,12 @@ void salvaRanking(Jogador p1, EstadoJogo jogo){
 
     auto tempoFinal = chrono::steady_clock::now();
     int tempoTotal = chrono::duration_cast<chrono::seconds>(tempoFinal - jogo.tempoInicio).count();
+
+    time_t t = time(0);
+    tm* now = localtime(&t);
+    char dataAtual[11];
+    strftime(dataAtual, sizeof(dataAtual), "%d/%m/%Y", now);
+
     string nomeJogador;
     cout << "\n\n\nDIGITE SEU PRIMEIRO NOME: ";
     cout << "\033[J";
@@ -632,7 +640,7 @@ void salvaRanking(Jogador p1, EstadoJogo jogo){
     ofstream arqRank;
     arqRank.open("ranking.txt", ios::app);
     if(arqRank.is_open()){
-        arqRank << "\n" << nomeJogador << "\t" << tempoTotal << "\t" << p1.pontuacao << "\n";
+        arqRank << dataAtual << "\t" << nomeJogador << "\t" << tempoTotal << "\t" << p1.qtdMovimentos << "\t" << p1.bombasUsadas << "\t" << p1.pontuacao << "\n";
         arqRank.close();
     }else{
         cout << "Erro ao salvar!!!" << endl;
@@ -767,7 +775,7 @@ int main() {
                                 auto duracaoInimigos = chrono::duration_cast < chrono::milliseconds>(tempoAtual_inimigos - tempoInimigos).count();
 
                                 if(duracaoInimigos >= 500) {
-                                    movimentaInimigos(jogo, inimigos, bomba, p1, selDificuldade);
+                                    movimentaInimigos(jogo, inimigos, bomba,p1,selDificuldade);
                                     tempoInimigos = chrono::steady_clock::now();
                                 }
 
@@ -837,6 +845,7 @@ int main() {
                         if(selDificuldade == 3){
                             jogo.inimigosAtivos = 7;
                         }
+
                     }while(selDificuldade < 1 || selDificuldade > 3);
                     break;
                 case 4:
@@ -853,7 +862,7 @@ int main() {
                         if(arqRank.is_open()){
                             totalJogadores = 0;
 
-                            while(arqRank >> lista[totalJogadores].nomeJogador >> lista[totalJogadores].tempoPartida >> lista[totalJogadores].pontosJogador){
+                            while(arqRank >> lista[totalJogadores].data >> lista[totalJogadores].nomeJogador >> lista[totalJogadores].tempoPartida >> lista[totalJogadores].movimentos >> lista[totalJogadores].bombasUsadas >> lista[totalJogadores].pontosJogador){
                                 totalJogadores++;
 
                             }
@@ -871,8 +880,9 @@ int main() {
                                 }
                             }
                         }
+                        cout << "DATA\t\tNOME\tBOMBAS\tMOVIMENTOS\tTEMPO\tPONTOS\n";
                         for(int i = 0; i < totalJogadores; i++){
-                            cout << lista[i].nomeJogador << "\t" << lista[i].tempoPartida << "\t" << lista[i].pontosJogador << endl;
+                            cout << lista[i].data << "\t" << lista[i].nomeJogador << "\t" << lista[i].bombasUsadas << "\t" << lista[i].movimentos <<"\t\t"<<  lista[i].tempoPartida << "\t" << lista[i].pontosJogador << endl;
                         }
                         cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
                         while(_kbhit()) { getch(); }
@@ -889,4 +899,3 @@ int main() {
 
 	return 0;
 }
-
