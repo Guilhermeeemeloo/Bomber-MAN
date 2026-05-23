@@ -922,8 +922,14 @@ int main() {
                     }
                     cin.clear();
                     getch();
-                    
-                    
+
+                    #ifdef _WIN32
+                        system("cls");
+                    #else
+                        system("clear");
+                    #endif
+                        cout << "\033[2J\033[H";
+
                     break;
                 case 4:
                     #ifdef _WIN32
