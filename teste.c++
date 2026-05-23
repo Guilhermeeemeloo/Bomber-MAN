@@ -37,6 +37,7 @@ struct Jogador {
     int bombasUsadas;
     double pontuacao;
     int inimigosAbatidos;
+    int caixasDestruidas;
 };
 
 struct pRanking {
@@ -122,19 +123,27 @@ int getch(void) {
 }
 #endif
 
-double calculaPontuacao(Jogador& p1){
-    double multiplicador = 2.0;
-    if(p1.bombasUsadas > 3){
-        multiplicador = 1.75;
-    }else if(p1.bombasUsadas > 2){
-        multiplicador = 1.5;
-    }else if(p1.bombasUsadas > 1){
-        multiplicador = 1.25;
+double calculaPontuacao(Jogador& p1) {
+    // PONTOS BASE
+    double pontosBase = (p1.inimigosAbatidos * 100) + (p1.caixasDestruidas * 10);
+
+    // BÔNUS DE EFICIÊNCIA DE BOMBAS
+    double bonusBomba = 1.0;
+    if(p1.bombasUsadas > 0) {
+        double relacao = (double)p1.inimigosAbatidos / p1.bombasUsadas;
+        if(relacao >= 1.0)       bonusBomba = 2.0;  // matou mais de 1 inimigo por bomba
+        else if(relacao >= 0.5)  bonusBomba = 1.5;  // matou 1 inimigo a cada 2 bombas
+        else                     bonusBomba = 1.0;  // abaixo disso, sem bônus
     }
 
-    return p1.pontuacao + (100 * multiplicador);
+    // PENALIDADE DE MOVIMENTOS
+    double penalidade = 1.0;
+    int excesso = p1.qtdMovimentos / 50;
+    if(excesso > 8) excesso = 8;
+    penalidade = 1.0 - (excesso * 0.05);
 
-
+    // CÁLCULO FINAL
+    return pontosBase * bonusBomba * penalidade;
 }
 
 // procedimento para desenhar o mapa do jogo
@@ -424,10 +433,22 @@ void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Inimigo inimigos[]
 			if(duracao >= 3000) {
 				bomba.ativa = false;
 
-				if(jogo.mapa[bomba.x-1][bomba.y] == 2) jogo.mapa[bomba.x-1][bomba.y] = 0;
-				if(jogo.mapa[bomba.x+1][bomba.y] == 2) jogo.mapa[bomba.x+1][bomba.y] = 0;
-				if(jogo.mapa[bomba.x][bomba.y-1] == 2) jogo.mapa[bomba.x][bomba.y-1] = 0;
-				if(jogo.mapa[bomba.x][bomba.y+1] == 2) jogo.mapa[bomba.x][bomba.y+1] = 0;
+				if(jogo.mapa[bomba.x-1][bomba.y] == 2) {
+                        jogo.mapa[bomba.x-1][bomba.y] = 0;
+                        p1.caixasDestruidas++;
+                }
+                if(jogo.mapa[bomba.x+1][bomba.y] == 2) {
+                    jogo.mapa[bomba.x+1][bomba.y] = 0;
+                    p1.caixasDestruidas++;
+            }
+                if(jogo.mapa[bomba.x][bomba.y-1] == 2) {
+                    jogo.mapa[bomba.x][bomba.y-1] = 0;
+                    p1.caixasDestruidas++;
+                }
+                if(jogo.mapa[bomba.x][bomba.y+1] == 2) {
+                    jogo.mapa[bomba.x][bomba.y+1] = 0;
+                    p1.caixasDestruidas++;
+                }
 
 				for(int k = 0; k < jogo.inimigosAtivos; k++) {
 					if(inimigos[k].vivo == true) {
@@ -650,6 +671,7 @@ void salvaRanking(Jogador p1, EstadoJogo jogo){
 
 void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]){
     cout << "\033[J";
+    p1.caixasDestruidas = 0;
     const int mapaBase[19][25] = {
 
         {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
