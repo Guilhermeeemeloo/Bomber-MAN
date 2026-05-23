@@ -148,6 +148,9 @@ struct EstadoJogo {
     unsigned inimigosAtivos;
     chrono::steady_clock::time_point tempoInicio;
     int fase;
+    bool portalAtivo;
+    int portalX;
+    int portalY;
 };
 
 void enableANSI() {
@@ -240,6 +243,9 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 			}else if(bomba.ativa == true && i==bomba.x && j==bomba.y) {
 				cout << "\033[42m💣\033[0m";
 
+			}else if(jogo.portalAtivo && i == jogo.portalX && j == jogo.portalY) {
+                cout << "\033[45m🌀\033[0m";
+                continue;
 			}else{
 				bool inimigoAqui = false;
 				for(int k = 0; k < jogo.inimigosAtivos; k++) {
@@ -264,6 +270,7 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 					}
 				}
 			}
+
 		}
 		cout<<"\n";
 	}
@@ -572,9 +579,9 @@ void carregaMapa(EstadoJogo& jogo) {
             jogo.mapa[i][j] = mapa[i][j];
 }
 
-
 void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]) {
     jogo.fase++;
+    jogo.portalAtivo = false;
     carregaMapa(jogo);
 
     // Reposiciona jogador
@@ -610,53 +617,57 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 
     int inimigosMortos = 0;
 
-        for(int k = 0; k < jogo.inimigosAtivos; k++){
-            if((inimigos[k].vivo == true) && inimigos[k].x == p1.x && inimigos[k].y == p1.y){
-                p1.vivo = false;
-            }
-            if(inimigos[k].vivo == false){
-                inimigosMortos++;
-            }
+    for(int k = 0; k < jogo.inimigosAtivos; k++){
+        if(inimigos[k].vivo == true && inimigos[k].x == p1.x && inimigos[k].y == p1.y){
+            p1.vivo = false;
         }
+        if(inimigos[k].vivo == false){
+            inimigosMortos++;
+        }
+    }
 
-        if(inimigosMortos == jogo.inimigosAtivos && bomba.explosaoAtiva == false){
-            if(jogo.fase < 3) {
-                // ainda tem fases — avança para a próxima
-                avancaFase(jogo, p1, bomba, inimigos);
-            } else {
-                // fase 3 concluída — vitória final
-                #ifdef _WIN32
-                    COORD coord;
-                    coord.X = 0;
-                    coord.Y = 0;
-                    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-                #else
-                    cout << "\033[H";
-                #endif
-                jogo.vencedor = true;
-                imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
-                auto inicioPausa = chrono::steady_clock::now();
-                while (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {
-                }
-                jogo.rodando = false;
-            }
-}
+    // Todos os inimigos morreram
+    if(inimigosMortos == jogo.inimigosAtivos && bomba.explosaoAtiva == false) {
 
-        if(p1.vivo == false && bomba.explosaoAtiva == false){
+        if(jogo.fase == 3) {
+            // Boss morreu = vitória final
             #ifdef _WIN32
-                COORD coord;
-                coord.X = 0;
-                coord.Y = 0;
+                COORD coord; coord.X = 0; coord.Y = 0;
                 SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
             #else
                 cout << "\033[H";
             #endif
-                imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
-                auto inicioPausa = chrono::steady_clock::now();
-                while (chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {
-                }
-                jogo.rodando = false;
+            jogo.vencedor = true;
+            imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
+            auto inicioPausa = chrono::steady_clock::now();
+            while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {}
+            jogo.rodando = false;
+
+        } else {
+            // Fases 1 e 2: ativa o portal
+            jogo.portalAtivo = true;
         }
+    }
+
+    // Jogador entrou no portal
+    if(jogo.portalAtivo && p1.x == jogo.portalX && p1.y == jogo.portalY) {
+        jogo.portalAtivo = false;
+        avancaFase(jogo, p1, bomba, inimigos);
+    }
+
+    // Jogador morreu
+    if(p1.vivo == false && bomba.explosaoAtiva == false){
+        #ifdef _WIN32
+            COORD coord; coord.X = 0; coord.Y = 0;
+            SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+        #else
+            cout << "\033[H";
+        #endif
+        imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
+        auto inicioPausa = chrono::steady_clock::now();
+        while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {}
+        jogo.rodando = false;
+    }
 }
 
 void imprimeTela(){
@@ -822,8 +833,9 @@ void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[])
     bomba.tempoPlantada = chrono::steady_clock::now();
     bomba.x = 0;
     bomba.y = 0;
-
-
+    jogo.portalAtivo = false;
+    jogo.portalX = 9;
+    jogo.portalY = 12;
 
     sorteiaFrageis(jogo, p1);
 
@@ -1064,7 +1076,6 @@ int main() {
                                 }
                             }
                         }
-
                         cout << "DATA\t\tNOME\tBOMBAS\tMOVIMENTOS\tTEMPO\tPONTOS\n";
                         for(int i = 0; i < totalJogadores; i++){
                             int minutos = lista[i].tempoPartida / 60;
