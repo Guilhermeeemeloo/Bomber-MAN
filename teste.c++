@@ -892,6 +892,7 @@ int main() {
 
                         }else{
                             cout << "Erro ao acessar o ranking!";
+                            cout << "\033[J";
                         }
                         for(int i = 0; i < totalJogadores - 1; i++){
                             for(int j = 0; j < totalJogadores - i - 1; j++){
@@ -904,8 +905,18 @@ int main() {
                         }
                         cout << "DATA\t\tNOME\tBOMBAS\tMOVIMENTOS\tTEMPO\tPONTOS\n";
                         for(int i = 0; i < totalJogadores; i++){
-                            cout << lista[i].data << "\t" << lista[i].nomeJogador << "\t" << lista[i].bombasUsadas << "\t" << lista[i].movimentos <<"\t\t"<<  lista[i].tempoPartida << "\t" << lista[i].pontosJogador << endl;
-                        }
+                            int minutos = lista[i].tempoPartida / 60;
+                            int segundos = lista[i].tempoPartida % 60;
+
+                            cout << lista[i].data << "\t" << lista[i].nomeJogador << "\t" << lista[i].bombasUsadas << "\t" << lista[i].movimentos << "\t\t";
+
+                            if(minutos < 10) cout << "0";
+                            cout << minutos << "m ";
+                            if(segundos < 10) cout << "0";
+                            cout << segundos << "s\t";
+
+                            cout << "  " << lista[i].pontosJogador << endl;
+                            }
                         cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
                         while(_kbhit()) { getch(); }
                             cin.clear();
