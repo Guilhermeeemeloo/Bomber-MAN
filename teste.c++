@@ -1,3 +1,4 @@
+
 /*
 Trabalho Bomberman - M1 - Algorítmos e Programação II
 
@@ -265,56 +266,97 @@ void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Bomba& bomba) {
 	}
 }
 
-// procedimento para movimentar os inimigos no mapa
-void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba) {
-	for(int k = 0; k < jogo.inimigosAtivos; k++) {
-		if(inimigos[k].vivo == true) {
-            if(inimigos[k].passos == 0){
-                inimigos[k].direcao = rand() %4;
-                inimigos[k].passos = rand() %3 +1;
+// procedimento para movimentar os inimigos no mapa      //Alterar Aqui a dificuldade
+void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogador& p1, unsigned selDificuldade) {
 
-                continue;
+    // Define a chance de perseguição baseada na dificuldade
+    int chancePerseguicao;
+    if(selDificuldade == 3) {
+        chancePerseguicao = 75; // Difícil: 75% de chance
+    } else if(selDificuldade == 2) {
+        chancePerseguicao = 50; // Intermediário: 50% de chance
+    } else {
+        chancePerseguicao = 0;  // Fácil: sem perseguição
+    }
+
+    for(int k = 0; k < jogo.inimigosAtivos; k++) {
+
+        // Ignora inimigos mortos
+        if(inimigos[k].vivo == false) {
+            continue;
+        }
+
+        // Só escolhe nova direção quando os passos acabam
+        if(inimigos[k].passos == 0) {
+
+            if(selDificuldade == 1) {
+                // FÁCIL: sempre aleatório, sem perseguição
+                inimigos[k].direcao = rand() % 4;
+
+            } else {
+                // INTERMEDIÁRIO E DIFÍCIL: sorteio de perseguição
+                int sorteio = rand() % 100;
+
+                if(sorteio < chancePerseguicao) {
+                    // MODO PERSEGUIÇÃO
+                    int diffX = p1.x - inimigos[k].x;
+                    int diffY = p1.y - inimigos[k].y;
+
+                    if(abs(diffX) >= abs(diffY)) {
+                        inimigos[k].direcao = (diffX > 0) ? 1 : 0; // 1=baixo, 0=cima
+                    } else {
+                        inimigos[k].direcao = (diffY > 0) ? 3 : 2; // 3=direita, 2=esquerda
+                    }
+                } else {
+                    // MODO ALEATÓRIO
+                    inimigos[k].direcao = rand() % 4;
+                }
             }
-			switch(inimigos[k].direcao) {
-			case 0:
-				if(jogo.mapa[inimigos[k].x - 1][inimigos[k].y] == 0 && (bomba.ativa == false || (inimigos[k].x - 1 != bomba.x || inimigos[k].y != bomba.y))) {
-					inimigos[k].x--;
-					inimigos[k].passos--;
-				} else {
-				    inimigos[k].passos = 0;
-					break;
-				}
-				break;
-			case 1:
-				if(jogo.mapa[inimigos[k].x + 1][inimigos[k].y] == 0 && (bomba.ativa == false || (inimigos[k].x + 1 != bomba.x || inimigos[k].y != bomba.y))) {
-					inimigos[k].x++;
-					inimigos[k].passos--;
-				} else {
-				    inimigos[k].passos = 0;
-					break;
-				}
-				break;
-			case 2:
-				if(jogo.mapa[inimigos[k].x][inimigos[k].y -1] == 0 && (bomba.ativa == false || (inimigos[k].x != bomba.x || inimigos[k].y-1 != bomba.y))) {
-					inimigos[k].y--;
-					inimigos[k].passos--;
-				} else {
-				    inimigos[k].passos = 0 ;
-					break;
-				}
-				break;
-			case 3:
-				if(jogo.mapa[inimigos[k].x][inimigos[k].y +1] == 0 && (bomba.ativa == false || (inimigos[k].x != bomba.x || inimigos[k].y+1 != bomba.y))) {
-					inimigos[k].y++;
-					inimigos[k].passos--;
-				} else {
-				    inimigos[k].passos = 0;
-					break;
-				}
-				break;
-			}
-		}
-	}
+
+            inimigos[k].passos = rand() % 3 + 1;
+            continue;
+        }
+
+        // Executa o movimento na direção escolhida
+        switch(inimigos[k].direcao) {
+        case 0: // Cima
+            if(jogo.mapa[inimigos[k].x - 1][inimigos[k].y] == 0 &&
+                (bomba.ativa == false || (inimigos[k].x - 1 != bomba.x || inimigos[k].y != bomba.y))) {
+                inimigos[k].x--;
+                inimigos[k].passos--;
+            } else {
+                inimigos[k].passos = 0;
+            }
+            break;
+        case 1: // Baixo
+            if(jogo.mapa[inimigos[k].x + 1][inimigos[k].y] == 0 &&
+                (bomba.ativa == false || (inimigos[k].x + 1 != bomba.x || inimigos[k].y != bomba.y))) {
+                inimigos[k].x++;
+                inimigos[k].passos--;
+            } else {
+                inimigos[k].passos = 0;
+            }
+            break;
+        case 2: // Esquerda
+            if(jogo.mapa[inimigos[k].x][inimigos[k].y - 1] == 0 &&
+                (bomba.ativa == false || (inimigos[k].x != bomba.x || inimigos[k].y - 1 != bomba.y))) {
+                inimigos[k].y--;
+                inimigos[k].passos--;
+            } else {
+                inimigos[k].passos = 0;
+            }
+            break;
+        case 3: // Direita
+            if(jogo.mapa[inimigos[k].x][inimigos[k].y + 1] == 0 &&
+                (bomba.ativa == false || (inimigos[k].x != bomba.x || inimigos[k].y + 1 != bomba.y))) {
+                inimigos[k].y++;
+                inimigos[k].passos--;
+            } else {
+                inimigos[k].passos = 0;
+            }
+            break;
+        }
+    }
 }
 //procedimento para inicializar os inimigos no jogo
 void inicializaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Jogador p1){
@@ -725,7 +767,7 @@ int main() {
                                 auto duracaoInimigos = chrono::duration_cast < chrono::milliseconds>(tempoAtual_inimigos - tempoInimigos).count();
 
                                 if(duracaoInimigos >= 500) {
-                                    movimentaInimigos(jogo, inimigos, bomba);
+                                    movimentaInimigos(jogo, inimigos, bomba, p1, selDificuldade);
                                     tempoInimigos = chrono::steady_clock::now();
                                 }
 
@@ -795,7 +837,6 @@ int main() {
                         if(selDificuldade == 3){
                             jogo.inimigosAtivos = 7;
                         }
-
                     }while(selDificuldade < 1 || selDificuldade > 3);
                     break;
                 case 4:
@@ -848,3 +889,4 @@ int main() {
 
 	return 0;
 }
+
