@@ -870,6 +870,61 @@ int main() {
 
                     }while(selDificuldade < 1 || selDificuldade > 3);
                     break;
+                case 3:
+                    #ifdef _WIN32
+                        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                    #else
+                        cout << "\033[H";
+                    #endif
+
+                    imprimeTelaInicial();
+                    cout << "\033[J";
+
+                    cout << "\n\033[36m===\t COMO JOGAR\t===\033[0m\n\n";
+
+                    cout << "\033[33mCONTROLES:\033[0m\n";
+                    cout << "  W / Seta Cima    -> Mover para cima\n";
+                    cout << "  S / Seta Baixo   -> Mover para baixo\n";
+                    cout << "  A / Seta Esquerda-> Mover para esquerda\n";
+                    cout << "  D / Seta Direita -> Mover para direita\n";
+                    cout << "  X                -> Plantar bomba\n";
+
+                    cout << "\n\033[33mITENS DO MAPA:\033[0m\n";
+                    cout << "  \033[42m🧔\033[0m  Voce\n";
+                    cout << "  \033[42m👹\033[0m  Inimigo - evite o contato!\n";
+                    cout << "  \033[42m💣\033[0m  Bomba plantada - explode em 3 segundos.\n";
+                    cout << "  \033[103m💥\033[0m  Explosao - mata inimigos e destroi caixas.\n";
+                    cout << "  \033[42m🧱\033[0m  Caixa destruivel pela bomba.\n";
+                    cout << "  \033[47m  \033[0m  Parede solida - não e destruivel.\n";
+
+                    cout << "\n\033[33mOBJETIVO:\033[0m\n";
+                    cout << "  Elimine todos os inimigos usando bombas para vencer!\n";
+                    cout << "  Cuidado para nao se explodir!\n";
+
+                    cout << "\n\033[33mDIFICULDADE:\033[0m\n";
+                    cout << "  Facil        -> 3 inimigos, movimento aleatorio\n";
+                    cout << "  Intermediario-> 5 inimigos, 50% de chance de te perseguir\n";
+                    cout << "  Dificil      -> 7 inimigos, 75% de chance de te perseguir\n";
+
+                    cout << "\n\033[33mPONTUACAO:\033[0m\n";
+                    cout << "  Cada inimigo abatido    -> +100 pontos\n";
+                    cout << "  Cada caixa destruida    -> +10 pontos\n";
+                    cout << "  Bonus por eficiencia:\n";
+                    cout << "    1+ inimigo por bomba  -> x2.0\n";
+                    cout << "    1 inimigo a cada 2    -> x1.5\n";
+                    cout << "    Abaixo disso          -> x1.0\n";
+                    cout << "  Penalidade de movimento:\n";
+                    cout << "    A cada 50 movimentos  -> -5%% (maximo -40%%)\n";
+
+                    cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
+                    while(_kbhit()) {
+                        getch();
+                    }
+                    cin.clear();
+                    getch();
+                    
+                    
+                    break;
                 case 4:
                     #ifdef _WIN32
                         SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
