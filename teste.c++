@@ -682,6 +682,9 @@ int main() {
 
     auto tempoInimigos = chrono::steady_clock::now();
 
+    pRanking lista[100];
+    pRanking temp;
+    int totalJogadores;
     unsigned opcao;
     unsigned selDificuldade;
     char lido;
@@ -807,13 +810,28 @@ int main() {
 
                         arqRank.open("ranking.txt");
                         if(arqRank.is_open()){
-                            while(arqRank.get(lido)){
-                                cout << lido;
+                            totalJogadores = 0;
+
+                            while(arqRank >> lista[totalJogadores].nomeJogador >> lista[totalJogadores].tempoPartida >> lista[totalJogadores].pontosJogador){
+                                totalJogadores++;
 
                             }
                             arqRank.close();
+
                         }else{
                             cout << "Erro ao acessar o ranking!";
+                        }
+                        for(int i = 0; i < totalJogadores - 1; i++){
+                            for(int j = 0; j < totalJogadores - i - 1; j++){
+                                if(lista[j].pontosJogador < lista[j+1].pontosJogador){
+                                    temp = lista[j];
+                                    lista[j] = lista[j+1];
+                                    lista[j+1] = temp;
+                                }
+                            }
+                        }
+                        for(int i = 0; i < totalJogadores; i++){
+                            cout << lista[i].nomeJogador << "\t" << lista[i].tempoPartida << "\t" << lista[i].pontosJogador << endl;
                         }
                         cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
                         while(_kbhit()) { getch(); }
