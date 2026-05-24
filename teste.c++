@@ -10,7 +10,6 @@ Guilherme Melo
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-#include <thread>
 #include <chrono>
 #include <locale.h>
 #include <fstream>
@@ -1398,8 +1397,10 @@ int main() {
                             movimentaIA(jogo, p2, bombaP2);
                             coletaPowerUp(jogo, p1);
                             coletaPowerUp(jogo, p2);
-                            this_thread::sleep_for(chrono::milliseconds(150)); // Controla velocidade dos bots
                         }
+
+                        // Pausa de frame global para humanos e bots rodarem na mesma velocidade
+                        this_thread::sleep_for(chrono::milliseconds(80));
 
                         auto tempoAtual_inimigos = chrono::steady_clock::now();
                         auto duracaoInimigos = chrono::duration_cast < chrono::milliseconds>(tempoAtual_inimigos - tempoInimigos).count();
