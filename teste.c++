@@ -209,6 +209,7 @@ struct EstadoJogo {
     bool spawnaBoss;
     PowerUp powerUps[maxPowerUps]; // array de power-ups no mapa
     int totalPowerUps;
+    int modoJogo;
 };
 
 void enableANSI() {
@@ -298,7 +299,7 @@ void inicializaPowerUpsJogador(Jogador& p1) {
     p1.pus.nivelFogo    = 0;
     p1.pus.qtdBombas    = 1;
     p1.pus.vidas        = 1;
-    p1.pus.temRelogio   = true;
+    p1.pus.temRelogio   = false;
     p1.pus.escudos      = 0;
     p1.pus.temFantasma  = false;
 }
@@ -422,6 +423,30 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba& bomba, Bomba
                     if(i == bomba.x && j == bomba.y + r) { naExplosao = true; break; }
                 }
             }
+            int raio2 = 1 + p2.pus.nivelFogo;
+            if(bombaP2.explosaoAtiva && jogo.mapa[i][j] != 1) {
+                if(i == bombaP2.x && j == bombaP2.y) naExplosao = true;
+                // propaga para cima
+                for(int r = 1; r <= raio2 && !naExplosao; r++) {
+                    if(jogo.mapa[bombaP2.x - r][bombaP2.y] == 1) break;
+                    if(i == bombaP2.x - r && j == bombaP2.y) { naExplosao = true; break; }
+                }
+                // propaga para baixo
+                for(int r = 1; r <= raio2 && !naExplosao; r++) {
+                    if(jogo.mapa[bombaP2.x + r][bombaP2.y] == 1) break;
+                    if(i == bombaP2.x + r && j == bombaP2.y) { naExplosao = true; break; }
+                }
+                // propaga para esquerda
+                for(int r = 1; r <= raio2 && !naExplosao; r++) {
+                    if(jogo.mapa[bombaP2.x][bombaP2.y - r] == 1) break;
+                    if(i == bombaP2.x && j == bombaP2.y - r) { naExplosao = true; break; }
+                }
+                // propaga para direita
+                for(int r = 1; r <= raio2 && !naExplosao; r++) {
+                    if(jogo.mapa[bombaP2.x][bombaP2.y + r] == 1) break;
+                    if(i == bombaP2.x && j == bombaP2.y + r) { naExplosao = true; break; }
+                }
+            }
 
             if(naExplosao) {
                 cout << "\033[103m💥\033[0m";
@@ -432,7 +457,7 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba& bomba, Bomba
                 } else {
                     cout << corChao << "🪦\033[0m";
                 }
-            }else if(i==p2.x && j==p2.y) {
+            }else if(jogo.modoJogo == 2 && i==p2.x && j==p2.y) {
                 if(p2.vivo == true) cout << corChao << "🥷\033[0m";
                 else cout << corChao << "🪦\033[0m";
             }else if(bomba.ativa == true && i==bomba.x && j==bomba.y) {
@@ -893,8 +918,12 @@ void avancaFase(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba& bomba, Bomba&
     bomba.ehRelogio = false;
 
     // Reseta o P2 também
-    p2.x = 1;
-    p2.y = 2;
+
+    if(jogo.modoJogo == 2) {
+        p2.x = 1;
+        p2.y = 2;
+        p2.vivo = true;
+    }
     bombaP2.ativa = false;
     bombaP2.explosaoAtiva = false;
     bombaP2.ehRelogio = false;
@@ -1190,13 +1219,19 @@ void resetaJogo(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba& bomba, Bomba&
     p1.x = 1;
     p1.y = 1;
 
-    p2.vivo = true;
+    if (jogo.modoJogo == 2) {
+        p2.vivo = true;
+        p2.x = 1;
+        p2.y = 2;
+    } else {
+        p2.vivo = false;
+        p2.x = 0;
+        p2.y = 0;
+    }
     p2.qtdMovimentos = 0;
     p2.bombasUsadas = 0;
     p2.pontuacao = 0;
     p2.inimigosAbatidos = 0;
-    p2.x = 1;
-    p2.y = 2;
 
     bomba.ativa = false;
     bomba.explosaoAtiva = false;
@@ -1289,57 +1324,96 @@ int main() {
 
             switch(opcao){
                 case 1:
-                    resetaJogo(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
 
-                    while(jogo.rodando == true) {
+                    // --- NOVO SUB-MENU ---
+                    do {
                         #ifdef _WIN32
-                                SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                            SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
                         #else
-                                cout << "\033[H";
+                            cout << "\033[H";
                         #endif
+                        imprimeTela();
+                        cout << "\033[J";
+                        cout << "\nSelecione o Modo de Jogo:\n";
+                        cout << "1- 1 Jogador\n";
+                        cout << "2- 2 Jogadores (Cooperativo)\n";
+                        cout << "3- PC vs PC (Em breve)\n";
+                        cout << "Escolha: ";
+                        cin >> jogo.modoJogo;
+
+                        if(cin.fail()) {
+                            cin.clear();
+                            cin.ignore(10000, '\n');
+                            jogo.modoJogo = 0;
+                        }
+                    } while(jogo.modoJogo < 1 || jogo.modoJogo > 3);
+
+                    // --- SWITCH DO MODO DE JOGO ---
+                    switch(jogo.modoJogo) {
+                        case 1:
+                        case 2:
+                            // Inicia o jogo para 1 ou 2 jogadores
+                            resetaJogo(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
+
+                            while(jogo.rodando == true) {
+                                #ifdef _WIN32
+                                        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                                #else
+                                        cout << "\033[H";
+                                #endif
 
                                 imprimeMapa(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
-
                                 executaMovimentos(jogo, p1, p2, bomba, bombaP2);
 
                                 auto tempoAtual_inimigos = chrono::steady_clock::now();
                                 auto duracaoInimigos = chrono::duration_cast < chrono::milliseconds>(tempoAtual_inimigos - tempoInimigos).count();
 
                                 if(duracaoInimigos >= 500) {
-                                    movimentaInimigos(jogo, inimigos, bomba,p1,selDificuldade);
+                                    movimentaInimigos(jogo, inimigos, bomba, p1, selDificuldade);
                                     tempoInimigos = chrono::steady_clock::now();
                                 }
 
                                 detonaBomba(jogo, bomba, p1, inimigos);
                                 detonaBomba(jogo, bombaP2, p2, inimigos);
                                 verificaFim(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
-                    }
-                    #ifdef _WIN32
-                        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-                    #else
-                        cout << "\033[H";
-                    #endif
+                            }
 
-                        imprimeTela(jogo.vencedor);
-                        salvaRanking(p1, jogo);
-                        cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
-
-                        #ifdef _WIN32
+                            // Tela de fim de jogo e Ranking
+                            #ifdef _WIN32
                                 SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-                        #else
+                            #else
                                 cout << "\033[H";
-                        #endif
-                        while(_kbhit()) { getch(); }
-                        cin.clear();
-                        getch();
-                        #ifdef _WIN32
-                            system ("cls");
-                        #else
-                            system ("clear");
-                        #endif
-                        cout << "\033[2J\033[H";
+                            #endif
 
-                        tocaMusica(0);
+                            imprimeTela(jogo.vencedor);
+                            salvaRanking(p1, jogo);
+                            cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
+
+                            #ifdef _WIN32
+                                SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                            #else
+                                cout << "\033[H";
+                            #endif
+                            while(_kbhit()) { getch(); }
+                            cin.clear();
+                            getch();
+                            #ifdef _WIN32
+                                system ("cls");
+                            #else
+                                system ("clear");
+                            #endif
+                            cout << "\033[2J\033[H";
+
+                            tocaMusica(0);
+                            break; // Encerra os cases 1 e 2 do modo de jogo
+
+                        case 3:
+                            // Modo em desenvolvimento (não inicia a partida)
+                            cout << "\nModo PC vs PC ainda em desenvolvimento!\n";
+                            auto inicioPausa = chrono::steady_clock::now();
+                            while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 2000) {}
+                            break; // Encerra o case 3
+                    }
                     break;
 
                 case 2:
