@@ -190,6 +190,7 @@ int _kbhit(void) {
   return 0;
 }
 
+
 int getch(void) {
     struct termios oldattr, newattr;
     int ch;
@@ -202,6 +203,16 @@ int getch(void) {
     return ch;
 }
 #endif
+void tocaMusica(int faixa) {
+    #ifdef _WIN32
+    switch(faixa) {
+        case 0: PlaySound(TEXT("tema_menu.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP); break;
+        case 1: PlaySound(TEXT("tema_fase1.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP); break;
+        case 2: PlaySound(TEXT("tema_fase2.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP); break;
+        case 3: PlaySound(TEXT("tema_fase3.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP); break;
+    }
+    #endif
+}
 
 double calculaPontuacao(Jogador& p1) {
     // PONTOS BASE
@@ -607,6 +618,7 @@ void carregaMapa(EstadoJogo& jogo) {
 
 void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade) {
     jogo.fase++;
+    tocaMusica(jogo.fase);
     jogo.portalAtivo = false;
     jogo.spawnaBoss = false;
     carregaMapa(jogo);
@@ -877,6 +889,7 @@ void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[],
 
 
     jogo.fase=1;
+    tocaMusica(1);
     if(selDificuldade == 1) jogo.inimigosAtivos = 3;
     else if(selDificuldade == 2) jogo.inimigosAtivos = 5;
     else if(selDificuldade == 3) jogo.inimigosAtivos = 7;
@@ -933,8 +946,8 @@ int main() {
 	#ifdef _WIN32
         DWORD volume = 0x33FF33FF;
         waveOutSetVolume(0, volume);
-        PlaySound(TEXT("musica.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
     #endif
+    tocaMusica(0);
 
 	EstadoJogo jogo;
     Jogador p1;
@@ -1024,6 +1037,8 @@ int main() {
                             system ("clear");
                         #endif
                         cout << "\033[2J\033[H";
+
+                        tocaMusica(0);
                     break;
 
                 case 2:
