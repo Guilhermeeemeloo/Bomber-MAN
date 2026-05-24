@@ -19,6 +19,7 @@ Guilherme Melo
 #ifdef _WIN32
     #include <windows.h>
     #include <conio.h>
+    #include <mmsystem.h>
 #else
     #include <unistd.h>
     #include <termios.h>
@@ -240,7 +241,7 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 
 			}else if(i==p1.x && j==p1.y) {
 				if(p1.vivo == true){
-                    cout<< corChao << "🧔\033[0m";
+                    cout<< corChao << "👳🏻‍♂️\033[0m";
 				}else{
                     cout<< corChao<< "🪦\033[0m";
 				}
@@ -249,18 +250,22 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 				cout << corChao << "💣\033[0m";
 
 			}else if(jogo.portalAtivo && i == jogo.portalX && j == jogo.portalY) {
-                cout << "\033[45m🌀\033[0m";
+                cout << "\033[45m🕌\033[0m";
                 continue;
 			}else{
-				bool inimigoAqui = false;
+                bool inimigoAqui = false;
+				bool ehBoss = false; // <-- Nova variavel para checar se o inimigo é o boss
 				for(int k = 0; k < jogo.inimigosAtivos; k++) {
-					if(inimigoAqui == false && inimigos[k].vivo == true && i == inimigos[k].x && j == inimigos[k].y) {
+					if(inimigos[k].vivo == true && i == inimigos[k].x && j == inimigos[k].y) {
 						inimigoAqui = true;
+						if(inimigos[k].boss == true) ehBoss = true; // Salva a identidade dele
+						break; // Otimizaçao: ja achou o inimigo, pode parar de procurar nessa casa
 					}
 				}
 
 				if(inimigoAqui == true) {
-					cout << corChao << "👹";
+					if(ehBoss) cout << corChao << "👺"; // Emoji exclusivo do Boss!
+					else cout << corChao << "👹";       // Inimigo comum
 				}else{
 					switch (jogo.mapa[i][j]) {
 					case 0:
@@ -388,14 +393,30 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
         if(inimigos[k].passos == 0) {
 
             if(inimigos[k].boss == true) {
-                // BOSS: 100% perseguição sempre
+                // Inteligencia do Boss: Tenta o caminho mais direto, se tiver bloqueado, tenta "deslizar" pelo outro eixo
                 int diffX = p1.x - inimigos[k].x;
                 int diffY = p1.y - inimigos[k].y;
-                if(abs(diffX) >= abs(diffY))
-                    inimigos[k].direcao = (diffX > 0) ? 1 : 0;
-                else
-                    inimigos[k].direcao = (diffY > 0) ? 3 : 2;
 
+                int dirX = (diffX > 0) ? 1 : 0; // 1 = Baixo, 0 = Cima
+                int dirY = (diffY > 0) ? 3 : 2; // 3 = Direita, 2 = Esquerda
+
+                // Simula se as proximas casas nas direcoes desejadas estao livres (chao = 0)
+                int proxX = inimigos[k].x + (dirX == 1 ? 1 : -1);
+                int proxY = inimigos[k].y + (dirY == 3 ? 1 : -1);
+
+                bool livreX = (jogo.mapa[proxX][inimigos[k].y] == 0);
+                bool livreY = (jogo.mapa[inimigos[k].x][proxY] == 0);
+
+                // Decide o movimento
+                if(abs(diffX) >= abs(diffY)) {
+                    if(livreX) inimigos[k].direcao = dirX;          // Vai reto
+                    else if(livreY) inimigos[k].direcao = dirY;     // Desvia pelo lado
+                    else inimigos[k].direcao = rand() % 4;          // Encurralado (tenta sortear p/ desbugar)
+                } else {
+                    if(livreY) inimigos[k].direcao = dirY;          // Vai reto
+                    else if(livreX) inimigos[k].direcao = dirX;     // Desvia pelo lado
+                    else inimigos[k].direcao = rand() % 4;          // Encurralado (tenta sortear p/ desbugar)
+                }
             } else if(selDificuldade == 1) {
                 // FÁCIL: sempre aleatório
                 inimigos[k].direcao = rand() % 4;
@@ -607,7 +628,7 @@ void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[],
 
     // ATENCAO: Apagamos o jogo.tempoInicio daqui para não resetar o Ranking!
 }
-void animacaoPortalRecursiva(int segundos) {
+void contagemRecursiva(int segundos) {
     if (segundos == 0) {
         cout << "\033[33m 0!\033[0m\n";
         auto inicioPausa = chrono::steady_clock::now();
@@ -621,7 +642,7 @@ void animacaoPortalRecursiva(int segundos) {
     auto inicioPausa = chrono::steady_clock::now();
     while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {}
 
-    animacaoPortalRecursiva(segundos - 1);
+    contagemRecursiva(segundos - 1);
 }
 // procedimento para verificar se as condicoes de vitoria ou derrota foram atingidas
 void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade){
@@ -677,7 +698,7 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 
         // 2. Aciona o texto e a função recursiva
         cout << "\n\n\t\033[36m AVANCANDO PARA A FASE " << jogo.fase + 1 << " EM: \033[0m";
-        animacaoPortalRecursiva(3);
+        contagemRecursiva(3);
 
         // 3. Muda a fase de fato
         jogo.portalAtivo = false;
@@ -699,39 +720,51 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 }
 
 void imprimeTela(){
-    int matTelaInicial[19][25] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-                            1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
-                            };
-    for(int i = 0; i < 19; i++){
-            for(int j = 0; j < 25; j++){
-                switch(matTelaInicial[i][j]){
-                case 0: cout<< "  "; break;
-                case 1: cout<< "\033[47m  \033[0m"; break;
-                case 2: cout<< "\033[91m  \033[0m"; break;
-                case 3: cout<< "  "; break;
-                case 4: cout<< "  "; break;
-                case 5: cout<< "  "; break;
-                }
-            }
-            cout << "\n";
+    int matTelaInicial[19][25] = {
+    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,12,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,13,0,0,0,1},
+    {1,0,12,12,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,0,12,0,0,0,0,0,0,0,4,0,0,0,0,0,13,0,1},
+    {1,0,0,0,0,0,0,12,0,0,0,0,0,0,0,4,0,0,0,13,0,0,0,0,1},
+    {1,0,0,0,0,0,0,0,0,0,0,3,3,3,3,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,0,0,0,3,3,3,3,3,3,0,0,0,0,0,0,0,0,1},
+    {1,0,0,12,0,0,0,0,0,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,1},
+    {1,0,0,0,12,0,0,12,14,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,12,14,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,12,14,14,3,3,3,3,3,3,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,12,0,0,12,14,14,3,3,3,3,0,0,0,0,0,0,12,0,0,1},
+    {1,0,0,0,0,0,0,0,0,12,14,14,14,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,12,0,0,0,0,1},
+    {1,0,12,12,0,0,0,0,5,6,7,5,8,9,7,10,11,0,0,12,0,0,0,0,1},
+    {1,0,0,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+};
+
+for(int i = 0; i < 19; i++){
+    for(int j = 0; j < 25; j++){
+        switch(matTelaInicial[i][j]){
+        case 0: cout<< "\033[104m  \033[0m"; break;
+        case 1: cout<< "\033[107m  \033[0m"; break;
+        case 2: cout<< "\033[103m🔥\033[0m"; break;
+        case 3: cout<< "\033[100m💣\033[0m"; break;
+        case 4: cout<< "\033[104m🧨\033[0m"; break;
+        case 5: cout<< "\033[104m\033[31m B"; break;
+        case 6: cout<< "\033[104m\033[31m 0"; break;
+        case 7: cout<< "\033[104m\033[31m M"; break;
+        case 8: cout<< "\033[104m\033[31m E"; break;
+        case 9: cout<< "\033[104m\033[31m R"; break;
+        case 10: cout<< "\033[104m\033[31m A"; break;
+        case 11: cout<< "\033[104m\033[31m N"; break;
+        case 12: cout<< "\033[44m🧱\033[0m"; break;
+        case 13: cout<< "\033[104m👹\033[0m"; break;
+        case 14: cout<< "\033[40m  \033[0m"; break;
+
         }
+    }
+    cout << "\n";
+}
 
 }
 // procedimento que desenha a tela final
@@ -896,6 +929,12 @@ int main() {
 
 	srand(time(NULL));
 	enableANSI();
+
+	#ifdef _WIN32
+        DWORD volume = 0x33FF33FF;
+        waveOutSetVolume(0, volume);
+        PlaySound(TEXT("musica.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    #endif
 
 	EstadoJogo jogo;
     Jogador p1;
