@@ -10,6 +10,7 @@ Guilherme Melo
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+#include <thread>
 #include <chrono>
 #include <locale.h>
 #include <fstream>
