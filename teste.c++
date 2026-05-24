@@ -96,6 +96,58 @@ using namespace std;
 
 const unsigned maxInimigos = 10;
 
+// ============================================================
+// SISTEMA DE POWER-UPS
+// ============================================================
+// Tipos de power-up
+enum TipoPowerUp {
+    PU_FOGO,        // Aumenta raio de fogo (+1, cumulativo)
+    PU_BOMBA,       // Aumenta qtd de bombas (+1, cumulativo)
+    PU_VIDA,        // Vida extra (cumulativo)
+    PU_RELOGIO,     // Bomba relógio (explode instantaneamente)
+    PU_ESCUDO,      // Sobreviver a uma bomba
+    PU_FANTASMA,    // Passar por blocos quebráveis
+    TOTAL_POWERUPS
+};
+
+const char* nomePowerUp[] = {
+    "Fogo+",
+    "Bomba+",
+    "Vida+",
+    "Relogio",
+    "Escudo",
+    "Fantasma"
+};
+
+const char* emojPowerUp[] = {
+    "🔥",  // Fogo+
+    "💣",  // Bomba+
+    "❤️",  // Vida+
+    "⏰",  // Relogio
+    "🛡️",  // Escudo
+    "👻"   // Fantasma
+};
+
+struct PowerUp {
+    int x;
+    int y;
+    bool ativo;
+    TipoPowerUp tipo;
+};
+
+const int maxPowerUps = 30;
+
+// Power-ups do jogador (atributos acumulados)
+struct PowerUpsJogador {
+    int nivelFogo;      // raio extra de explosão (default 0)
+    int qtdBombas;      // bombas simultâneas permitidas (default 1)
+    int vidas;          // <--- MUDOU DE vidasExtra para vidas
+    bool temRelogio;    // próxima bomba explode pelo controle
+    int escudos;        // escudos que absorvem dano (default 0)
+    bool temFantasma;   // pode atravessar caixas (default false)
+};
+// ============================================================
+
 template <typename T>
 void troca(T& a, T& b) {
     T temporario = a;
@@ -112,6 +164,7 @@ struct Jogador {
     double pontuacao;
     int inimigosAbatidos;
     int caixasDestruidas;
+    PowerUpsJogador pus; // power-ups ativos
 };
 
 struct pRanking {
@@ -140,6 +193,7 @@ struct Bomba {
     chrono::steady_clock::time_point tempoPlantada;
     bool explosaoAtiva;
     chrono::steady_clock::time_point tempoExplosao;
+    bool ehRelogio;
 };
 
 struct EstadoJogo {
@@ -153,6 +207,8 @@ struct EstadoJogo {
     int portalX;
     int portalY;
     bool spawnaBoss;
+    PowerUp powerUps[maxPowerUps]; // array de power-ups no mapa
+    int totalPowerUps;
 };
 
 void enableANSI() {
@@ -215,151 +271,282 @@ void tocaMusica(int faixa) {
 }
 
 double calculaPontuacao(Jogador& p1) {
-    // PONTOS BASE
     double pontosBase = (p1.inimigosAbatidos * 100) + (p1.caixasDestruidas * 10);
 
-    // BÔNUS DE EFICIÊNCIA DE BOMBAS
     double bonusBomba = 1.0;
     if(p1.bombasUsadas > 0) {
         double relacao = (double)p1.inimigosAbatidos / p1.bombasUsadas;
-        if(relacao >= 1.0)       bonusBomba = 2.0;  // matou mais de 1 inimigo por bomba
-        else if(relacao >= 0.5)  bonusBomba = 1.5;  // matou 1 inimigo a cada 2 bombas
-        else                     bonusBomba = 1.0;  // abaixo disso, sem bônus
+        if(relacao >= 1.0)       bonusBomba = 2.0;
+        else if(relacao >= 0.5)  bonusBomba = 1.5;
+        else                     bonusBomba = 1.0;
     }
 
-    // PENALIDADE DE MOVIMENTOS
     double penalidade = 1.0;
     int excesso = p1.qtdMovimentos / 50;
     if(excesso > 8) excesso = 8;
     penalidade = 1.0 - (excesso * 0.05);
 
-    // CÁLCULO FINAL
     return pontosBase * bonusBomba * penalidade;
 }
+
+// ============================================================
+// FUNÇÕES DO SISTEMA DE POWER-UPS
+// ============================================================
+
+// Inicializa os atributos padrão de power-ups do jogador
+void inicializaPowerUpsJogador(Jogador& p1) {
+    p1.pus.nivelFogo    = 0;
+    p1.pus.qtdBombas    = 1;
+    p1.pus.vidas        = 1;
+    p1.pus.temRelogio   = true;
+    p1.pus.escudos      = 0;
+    p1.pus.temFantasma  = false;
+}
+
+// Sorteia power-ups no mapa quando uma caixa é destruída
+// Cada caixa destruída tem ~40% de chance de gerar um power-up
+void sorteiaDropPowerUp(EstadoJogo& jogo, int linhaDestruida, int colunaDestruida) {
+    if(jogo.totalPowerUps >= maxPowerUps) return;
+
+    // 40% de chance de dropar
+    if(rand() % 100 >= 40) return;
+
+    // Garante que a célula está livre (mapa[x][y] == 0 após destruição)
+    if(jogo.mapa[linhaDestruida][colunaDestruida] != 0) return;
+
+    // Sorteia o tipo (distribuição ponderada para balanceamento)
+    // Fogo e Bomba são mais comuns; Escudo e Fantasma mais raros
+    int sorteio = rand() % 100;
+    TipoPowerUp tipo;
+    if     (sorteio < 25) tipo = PU_FOGO;
+    else if(sorteio < 45) tipo = PU_BOMBA;
+    else if(sorteio < 60) tipo = PU_VIDA;
+    else if(sorteio < 72) tipo = PU_RELOGIO;
+    else if(sorteio < 86) tipo = PU_ESCUDO;
+    else                  tipo = PU_FANTASMA;
+
+    jogo.powerUps[jogo.totalPowerUps].x     = linhaDestruida;
+    jogo.powerUps[jogo.totalPowerUps].y     = colunaDestruida;
+    jogo.powerUps[jogo.totalPowerUps].ativo  = true;
+    jogo.powerUps[jogo.totalPowerUps].tipo   = tipo;
+    jogo.totalPowerUps++;
+}
+
+// Aplica o efeito do power-up no jogador
+void aplicaPowerUp(Jogador& p1, TipoPowerUp tipo) {
+    switch(tipo) {
+        case PU_FOGO:
+            p1.pus.nivelFogo++;
+            break;
+        case PU_BOMBA:
+            p1.pus.qtdBombas++;
+            break;
+        case PU_VIDA:
+            p1.pus.vidas++;
+            break;
+        case PU_RELOGIO:
+            p1.pus.temRelogio = true;
+            break;
+        case PU_ESCUDO:
+            p1.pus.escudos++;
+            break;
+        case PU_FANTASMA:
+            p1.pus.temFantasma = true;
+            break;
+        default: break;
+    }
+}
+
+// Verifica se o jogador está sobre algum power-up e o coleta
+void coletaPowerUp(EstadoJogo& jogo, Jogador& p1) {
+    for(int i = 0; i < jogo.totalPowerUps; i++) {
+        if(jogo.powerUps[i].ativo &&
+           jogo.powerUps[i].x == p1.x &&
+           jogo.powerUps[i].y == p1.y) {
+            aplicaPowerUp(p1, jogo.powerUps[i].tipo);
+            jogo.powerUps[i].ativo = false;
+        }
+    }
+}
+
+// Limpa todos os power-ups do mapa (usado ao trocar de fase)
+void limpaPowerUps(EstadoJogo& jogo) {
+    for(int i = 0; i < maxPowerUps; i++) {
+        jogo.powerUps[i].ativo = false;
+    }
+    jogo.totalPowerUps = 0;
+}
+
+// Verifica se uma célula é bloqueada levando em conta o fantasma
+bool celulaBloqueia(EstadoJogo& jogo, Jogador& p1, int x, int y) {
+    int cel = jogo.mapa[x][y];
+    if(cel == 1) return true;             // parede sólida: sempre bloqueia
+    if(cel == 2 && !p1.pus.temFantasma) return true; // caixa: bloqueia sem fantasma
+    return false;
+}
+// ============================================================
 
 // procedimento para desenhar o mapa do jogo
 void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade = 1) {
 
-    string corChao = "\033[42m"; // Verde Fase 1
-    if (jogo.fase == 2) corChao = "\033[46m"; // Azul Fase 2
-    if (jogo.fase == 3) corChao = "\033[100m"; // Cinza Escuro Fase 3
+    string corChao = "\033[42m";
+    if (jogo.fase == 2) corChao = "\033[46m";
+    if (jogo.fase == 3) corChao = "\033[100m";
 
-	for(int i=0; i<19; i++) {
-		for(int j=0; j<25; j++) {
+    for(int i=0; i<19; i++) {
+        for(int j=0; j<25; j++) {
 
-			if(bomba.explosaoAtiva == true && jogo.mapa[i][j] != 1 && (i == bomba.x && j == bomba.y || i == bomba.x - 1 && j == bomba.y || i == bomba.x + 1 && j == bomba.y ||  i == bomba.x && j == bomba.y - 1 || i == bomba.x && j == bomba.y + 1)) {
-				cout << "\033[103m💥\033[0m";
+            // --- calcula raio real de explosão com nivelFogo ---
+            int raio = 1 + p1.pus.nivelFogo;
+            bool naExplosao = false;
+            if(bomba.explosaoAtiva && jogo.mapa[i][j] != 1) {
+                if(i == bomba.x && j == bomba.y) naExplosao = true;
+                // propaga para cima
+                for(int r = 1; r <= raio && !naExplosao; r++) {
+                    if(jogo.mapa[bomba.x - r][bomba.y] == 1) break;
+                    if(i == bomba.x - r && j == bomba.y) { naExplosao = true; break; }
+                }
+                // propaga para baixo
+                for(int r = 1; r <= raio && !naExplosao; r++) {
+                    if(jogo.mapa[bomba.x + r][bomba.y] == 1) break;
+                    if(i == bomba.x + r && j == bomba.y) { naExplosao = true; break; }
+                }
+                // propaga para esquerda
+                for(int r = 1; r <= raio && !naExplosao; r++) {
+                    if(jogo.mapa[bomba.x][bomba.y - r] == 1) break;
+                    if(i == bomba.x && j == bomba.y - r) { naExplosao = true; break; }
+                }
+                // propaga para direita
+                for(int r = 1; r <= raio && !naExplosao; r++) {
+                    if(jogo.mapa[bomba.x][bomba.y + r] == 1) break;
+                    if(i == bomba.x && j == bomba.y + r) { naExplosao = true; break; }
+                }
+            }
 
-			}else if(i==p1.x && j==p1.y) {
-				if(p1.vivo == true){
-                    cout<< corChao << "👳🏻‍♂️\033[0m";
-				}else{
-                    cout<< corChao<< "🪦\033[0m";
-				}
+            if(naExplosao) {
+                cout << "\033[103m💥\033[0m";
 
-			}else if(bomba.ativa == true && i==bomba.x && j==bomba.y) {
-				cout << corChao << "💣\033[0m";
+            } else if(i==p1.x && j==p1.y) {
+                if(p1.vivo == true){
+                    cout << corChao << "👳🏻‍♂️\033[0m";
+                } else {
+                    cout << corChao << "🪦\033[0m";
+                }
 
-			}else if(jogo.portalAtivo && i == jogo.portalX && j == jogo.portalY) {
+            } else if(bomba.ativa == true && i==bomba.x && j==bomba.y) {
+                cout << corChao << "💣\033[0m";
+
+            } else if(jogo.portalAtivo && i == jogo.portalX && j == jogo.portalY) {
                 cout << "\033[45m🕌\033[0m";
                 continue;
-			}else{
+
+            } else {
+                // Verifica power-up na célula
+                bool temPU = false;
+                int idxPU = -1;
+                for(int p = 0; p < jogo.totalPowerUps; p++) {
+                    if(jogo.powerUps[p].ativo && jogo.powerUps[p].x == i && jogo.powerUps[p].y == j) {
+                        temPU = true;
+                        idxPU = p;
+                        break;
+                    }
+                }
+
                 bool inimigoAqui = false;
-				bool ehBoss = false; // <-- Nova variavel para checar se o inimigo é o boss
-				for(int k = 0; k < jogo.inimigosAtivos; k++) {
-					if(inimigos[k].vivo == true && i == inimigos[k].x && j == inimigos[k].y) {
-						inimigoAqui = true;
-						if(inimigos[k].boss == true) ehBoss = true; // Salva a identidade dele
-						break; // Otimizaçao: ja achou o inimigo, pode parar de procurar nessa casa
-					}
-				}
+                bool ehBoss = false;
+                for(int k = 0; k < jogo.inimigosAtivos; k++) {
+                    if(inimigos[k].vivo == true && i == inimigos[k].x && j == inimigos[k].y) {
+                        inimigoAqui = true;
+                        if(inimigos[k].boss == true) ehBoss = true;
+                        break;
+                    }
+                }
 
-				if(inimigoAqui == true) {
-					if(ehBoss) cout << corChao << "👺"; // Emoji exclusivo do Boss!
-					else cout << corChao << "👹";       // Inimigo comum
-				}else{
-					switch (jogo.mapa[i][j]) {
-					case 0:
-						cout<< corChao << "  \033[0m";
-						break;
-					case 1:
-						cout<< "\033[47m  \033[0m";
-						break;
-					case 2:
-						cout<< corChao << "🧱\033[0m";
-						break;
-					}
-				}
-			}
+                if(inimigoAqui) {
+                    if(ehBoss) cout << corChao << "👺";
+                    else       cout << corChao << "👹";
+                } else if(temPU) {
+                    // Exibe o emoji do power-up no chão
+                    cout << corChao << emojPowerUp[jogo.powerUps[idxPU].tipo] << "\033[0m";
+                } else {
+                    switch (jogo.mapa[i][j]) {
+                    case 0: cout << corChao << "  \033[0m"; break;
+                    case 1: cout << "\033[47m  \033[0m";   break;
+                    case 2: cout << corChao << "🧱\033[0m"; break;
+                    }
+                }
+            }
+        }
+        cout << "\n";
+    }
 
-		}
-		cout<<"\n";
-	}
-	cout << "\033[33mDIFICULDADE: ";
-	if(selDificuldade == 3){
-        cout << "Dificil";
-	}else if(selDificuldade == 2){
-        cout << "Intermediario";
-	}else{
-        cout << "Facil";
-	}
+    // --- HUD ---
+    cout << "\033[33mDIFICULDADE: ";
+    if(selDificuldade == 3)      cout << "Dificil";
+    else if(selDificuldade == 2) cout << "Intermediario";
+    else                         cout << "Facil";
 
+    auto tempoAtual = chrono::steady_clock::now();
+    int tempoDecorrido = chrono::duration_cast<chrono::seconds>(tempoAtual - jogo.tempoInicio).count();
+    int minutos  = tempoDecorrido / 60;
+    int segundos = tempoDecorrido % 60;
 
-	auto tempoAtual = chrono::steady_clock::now();
-	int tempoDecorrido = chrono::duration_cast<chrono::seconds>(tempoAtual - jogo.tempoInicio).count();
+    cout << "\t\033[33m" << "TEMPO DE JOGO: ";
+    if(minutos > 0)  { cout << minutos << "m "; if(segundos < 10) cout << "0"; }
+    else             { cout << "00m "; if(segundos < 10) cout << "0"; }
+    cout << segundos << "s ";
 
-	int minutos = tempoDecorrido / 60;
-	int segundos = tempoDecorrido % 60;
+    cout << "\n\033[36mMOVIMENTOS: " << p1.qtdMovimentos
+         << " | INIMIGOS ABATIDOS: " << p1.inimigosAbatidos
+         << "\nBOMBAS USADAS: " << p1.bombasUsadas
+         << " | PONTOS: " << p1.pontuacao << "\033[0m";
 
-	cout << "\t\033[33m" << "TEMPO DE JOGO: ";
+    // --- HUD de power-ups ativos ---
+    cout << "\n\033[35mPOWER-UPS: ";
+    cout << "🔥x" << p1.pus.nivelFogo + 1;       // exibe nível atual (base 1)
+    cout << " | 💣x" << p1.pus.qtdBombas;
+    cout << " | ❤️x" << p1.pus.vidas;
+    if(p1.pus.temRelogio)      cout << " | ⏰RELOGIO";
+    if(p1.pus.escudos     > 0) cout << " | 🛡️x" << p1.pus.escudos;
+    if(p1.pus.temFantasma)     cout << " | 👻FANTASMA";
+    cout << "\033[0m";
 
-	if (minutos > 0) {
-	    cout << minutos << "m ";
-	    if (segundos < 10) cout << "0";
-	}
-	if (minutos <= 0) {
-	    cout << "00m ";
-	    if (segundos < 10) cout << "0";
-	}
-	cout << segundos << "s ";
-
-	cout << "\n\033[36mMOVIMENTOS: " << p1.qtdMovimentos << " | INIMIGOS ABATIDOS: " << p1.inimigosAbatidos << "\nBOMBAS USADAS: " << p1.bombasUsadas << " | PONTOS: " << p1.pontuacao << "\033[0m";
-	cout << "\033[J";
+    cout << "\033[J";
 }
 
 // procedimento para executar as acoes do jogador no mapa
 void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Bomba& bomba) {
-	char tecla;
+    char tecla;
 
-	if(p1.vivo == true){
+    if(p1.vivo == true){
         if ( _kbhit() ) {
             tecla = getch();
             switch(tecla)
             {
             case 72:
             case 'w':
-                if(jogo.mapa[p1.x-1][p1.y] == 0) {
+                if(!celulaBloqueia(jogo, p1, p1.x-1, p1.y)) {
                     p1.x--;
                     p1.qtdMovimentos++;
                 }
                 break;
             case 80:
             case 's':
-                if(jogo.mapa[p1.x+1][p1.y] == 0) {
+                if(!celulaBloqueia(jogo, p1, p1.x+1, p1.y)) {
                     p1.x++;
                     p1.qtdMovimentos++;
                 }
                 break;
             case 75:
             case 'a':
-                if(jogo.mapa[p1.x][p1.y-1] == 0) {
+                if(!celulaBloqueia(jogo, p1, p1.x, p1.y-1)) {
                     p1.y--;
                     p1.qtdMovimentos++;
                 }
                 break;
             case 77:
             case 'd':
-                if(jogo.mapa[p1.x][p1.y+1] == 0) {
+                if(!celulaBloqueia(jogo, p1, p1.x, p1.y+1)) {
                     p1.y++;
                     p1.qtdMovimentos++;
                 }
@@ -372,13 +559,26 @@ void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Bomba& bomba) {
                     bomba.y = p1.y;
                     p1.bombasUsadas++;
                     bomba.tempoPlantada = chrono::steady_clock::now();
+
+                    // Transfere a habilidade para a bomba plantada, mas NÃO explode ela ainda!
+                    bomba.ehRelogio = p1.pus.temRelogio;
                 }
                 break;
-
+            case 67: // 'C' maiúsculo
+            case 'c': // 'c' minúsculo
+                // Só funciona se a bomba plantada for do tipo relógio!
+                if(bomba.ativa == true && bomba.ehRelogio == true) {
+                    bomba.ehRelogio = false; // Destrava a bomba
+                    bomba.tempoPlantada = chrono::steady_clock::now() - chrono::seconds(10); // Força ela a estourar agora!
+                }
+                break;
             }
+            // Após mover, tenta coletar power-up na nova posição
+            coletaPowerUp(jogo, p1);
         }
-	}
+    }
 }
+
 bool temInimigoNaCasa(int x, int y, int indexAtual, Inimigo inimigos[], unsigned total) {
     for(int k = 0; k < total; k++) {
         if(k != indexAtual && inimigos[k].vivo && inimigos[k].x == x && inimigos[k].y == y)
@@ -386,76 +586,61 @@ bool temInimigoNaCasa(int x, int y, int indexAtual, Inimigo inimigos[], unsigned
     }
     return false;
 }
-bool ehAreaPerigosa(int x, int y, Bomba& bomba) {
-    // Checa se é a bomba física
+
+bool ehAreaPerigosa(int x, int y, Bomba& bomba, int nivelFogo) {
     if (bomba.ativa && x == bomba.x && y == bomba.y) return true;
 
-    // Checa se é a área de explosão (cruz central + 4 lados)
     if (bomba.explosaoAtiva) {
-        if ((x == bomba.x && y == bomba.y) ||
-            (x == bomba.x - 1 && y == bomba.y) ||
-            (x == bomba.x + 1 && y == bomba.y) ||
-            (x == bomba.x && y == bomba.y - 1) ||
-            (x == bomba.x && y == bomba.y + 1)) {
-            return true;
+        int raio = 1 + nivelFogo;
+        if(x == bomba.x && y == bomba.y) return true;
+        for(int r = 1; r <= raio; r++) {
+            if(x == bomba.x - r && y == bomba.y) return true;
+            if(x == bomba.x + r && y == bomba.y) return true;
+            if(x == bomba.x && y == bomba.y - r) return true;
+            if(x == bomba.x && y == bomba.y + r) return true;
         }
     }
     return false;
 }
-// procedimento para movimentar os inimigos no mapa      //Alterar Aqui a dificuldade
+
 void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogador& p1, unsigned selDificuldade) {
 
-    // Define a chance de perseguição baseada na dificuldade
     int chancePerseguicao;
-    if(selDificuldade == 3) {
-        chancePerseguicao = 75; // Difícil: 75% de chance
-    } else if(selDificuldade == 2) {
-        chancePerseguicao = 50; // Intermediário: 50% de chance
-    } else {
-        chancePerseguicao = 0;  // Fácil: sem perseguição
-    }
+    if(selDificuldade == 3)      chancePerseguicao = 75;
+    else if(selDificuldade == 2) chancePerseguicao = 50;
+    else                         chancePerseguicao = 0;
 
     for(int k = 0; k < jogo.inimigosAtivos; k++) {
 
-        // Ignora inimigos mortos
-        if(inimigos[k].vivo == false) {
-            continue;
-        }
+        if(inimigos[k].vivo == false) continue;
 
-        // Só escolhe nova direção quando os passos acabam
         if(inimigos[k].passos == 0) {
 
             if(inimigos[k].boss == true) {
-                // Inteligencia do Boss: Tenta o caminho mais direto, se tiver bloqueado, tenta "deslizar" pelo outro eixo
                 int diffX = p1.x - inimigos[k].x;
                 int diffY = p1.y - inimigos[k].y;
 
-                int dirX = (diffX > 0) ? 1 : 0; // 1 = Baixo, 0 = Cima
-                int dirY = (diffY > 0) ? 3 : 2; // 3 = Direita, 2 = Esquerda
+                int dirX = (diffX > 0) ? 1 : 0;
+                int dirY = (diffY > 0) ? 3 : 2;
 
-                // Simula se as proximas casas nas direcoes desejadas estao livres (chao = 0)
                 int proxX = inimigos[k].x + (dirX == 1 ? 1 : -1);
                 int proxY = inimigos[k].y + (dirY == 3 ? 1 : -1);
 
                 bool livreX = (jogo.mapa[proxX][inimigos[k].y] == 0);
                 bool livreY = (jogo.mapa[inimigos[k].x][proxY] == 0);
 
-                // Decide o movimento
                 if(abs(diffX) >= abs(diffY)) {
-                    if(livreX) inimigos[k].direcao = dirX;          // Vai reto
-                    else if(livreY) inimigos[k].direcao = dirY;     // Desvia pelo lado
-                    else inimigos[k].direcao = rand() % 4;          // Encurralado (tenta sortear p/ desbugar)
+                    if(livreX) inimigos[k].direcao = dirX;
+                    else if(livreY) inimigos[k].direcao = dirY;
+                    else inimigos[k].direcao = rand() % 4;
                 } else {
-                    if(livreY) inimigos[k].direcao = dirY;          // Vai reto
-                    else if(livreX) inimigos[k].direcao = dirX;     // Desvia pelo lado
-                    else inimigos[k].direcao = rand() % 4;          // Encurralado (tenta sortear p/ desbugar)
+                    if(livreY) inimigos[k].direcao = dirY;
+                    else if(livreX) inimigos[k].direcao = dirX;
+                    else inimigos[k].direcao = rand() % 4;
                 }
             } else if(selDificuldade == 1) {
-                // FÁCIL: sempre aleatório
                 inimigos[k].direcao = rand() % 4;
-
             } else {
-                // INTERMEDIÁRIO E DIFÍCIL: sorteio de perseguição
                 int sorteio = rand() % 100;
                 if(sorteio < chancePerseguicao) {
                     int diffX = p1.x - inimigos[k].x;
@@ -473,11 +658,10 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
             continue;
         }
 
-        // Executa o movimento na direção escolhida
         switch(inimigos[k].direcao) {
-        case 0: // Cima
+        case 0:
             if(jogo.mapa[inimigos[k].x - 1][inimigos[k].y] == 0 &&
-               !ehAreaPerigosa(inimigos[k].x - 1, inimigos[k].y, bomba) &&
+               !ehAreaPerigosa(inimigos[k].x - 1, inimigos[k].y, bomba, p1.pus.nivelFogo) &&
                !temInimigoNaCasa(inimigos[k].x - 1, inimigos[k].y, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].x--;
                 inimigos[k].passos--;
@@ -485,9 +669,9 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
                 inimigos[k].passos = 0;
             }
             break;
-        case 1: // Baixo
+        case 1:
             if(jogo.mapa[inimigos[k].x + 1][inimigos[k].y] == 0 &&
-               !ehAreaPerigosa(inimigos[k].x + 1, inimigos[k].y, bomba) &&
+               !ehAreaPerigosa(inimigos[k].x + 1, inimigos[k].y, bomba, p1.pus.nivelFogo) &&
                !temInimigoNaCasa(inimigos[k].x + 1, inimigos[k].y, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].x++;
                 inimigos[k].passos--;
@@ -495,9 +679,9 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
                 inimigos[k].passos = 0;
             }
             break;
-        case 2: // Esquerda
+        case 2:
             if(jogo.mapa[inimigos[k].x][inimigos[k].y-1] == 0 &&
-               !ehAreaPerigosa(inimigos[k].x, inimigos[k].y-1, bomba) &&
+               !ehAreaPerigosa(inimigos[k].x, inimigos[k].y-1, bomba, p1.pus.nivelFogo) &&
                !temInimigoNaCasa(inimigos[k].x, inimigos[k].y-1, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].y--;
                 inimigos[k].passos--;
@@ -505,9 +689,9 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
                 inimigos[k].passos = 0;
             }
             break;
-        case 3: // Direita
+        case 3:
             if(jogo.mapa[inimigos[k].x][inimigos[k].y+1] == 0 &&
-               !ehAreaPerigosa(inimigos[k].x, inimigos[k].y+1, bomba) &&
+               !ehAreaPerigosa(inimigos[k].x, inimigos[k].y+1, bomba, p1.pus.nivelFogo) &&
                !temInimigoNaCasa(inimigos[k].x, inimigos[k].y+1, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].y++;
                 inimigos[k].passos--;
@@ -518,7 +702,7 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
         }
     }
 }
-//procedimento para inicializar os inimigos no jogo
+
 void inicializaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Jogador p1){
     int sorteioLinha, sorteioColuna;
 
@@ -534,100 +718,168 @@ void inicializaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Jogador p1){
 
             if (jogo.mapa[sorteioLinha][sorteioColuna] == 0) {
                 areaLivre = true;
-                if((sorteioLinha == p1.x && sorteioColuna == p1.y) || (sorteioLinha == p1.x +1 && sorteioColuna == p1.y) || (sorteioLinha == p1.x && sorteioColuna == p1.y +1) || (sorteioLinha == p1.x +2 && sorteioColuna == p1.y) || (sorteioLinha == p1.x && sorteioColuna == p1.y +2)){
-				areaLivre = false;
+                if((sorteioLinha == p1.x && sorteioColuna == p1.y) ||
+                   (sorteioLinha == p1.x +1 && sorteioColuna == p1.y) ||
+                   (sorteioLinha == p1.x && sorteioColuna == p1.y +1) ||
+                   (sorteioLinha == p1.x +2 && sorteioColuna == p1.y) ||
+                   (sorteioLinha == p1.x && sorteioColuna == p1.y +2)){
+                    areaLivre = false;
                 }
             }
-
 
             if(areaLivre == true) {
                 inimigos[i].x = sorteioLinha;
                 inimigos[i].y = sorteioColuna;
-                }
+            }
         }while(areaLivre == false);
     }
 }
 
-// procedimento para escolher aleatoriamente a posicao das paredes frageis
 void sorteiaFrageis(EstadoJogo& jogo, Jogador& p1){
     int cont = 0, sorteioLinha, sorteioColuna;
     bool areaLivre = false;
 
     while(cont < 50) {
-		sorteioLinha = rand() % 19;
-		sorteioColuna = rand() %  25;
+        sorteioLinha = rand() % 19;
+        sorteioColuna = rand() %  25;
 
-		if (jogo.mapa[sorteioLinha][sorteioColuna] == 0) {
-			areaLivre = true;
+        if (jogo.mapa[sorteioLinha][sorteioColuna] == 0) {
+            areaLivre = true;
 
-			if((sorteioLinha == p1.x && sorteioColuna == p1.y) || (sorteioLinha == p1.x +1 && sorteioColuna == p1.y) || (sorteioLinha == p1.x && sorteioColuna == p1.y +1))
-				areaLivre = false;
+            if((sorteioLinha == p1.x && sorteioColuna == p1.y) ||
+               (sorteioLinha == p1.x +1 && sorteioColuna == p1.y) ||
+               (sorteioLinha == p1.x && sorteioColuna == p1.y +1))
+                areaLivre = false;
 
-
-
-                if(areaLivre == true) {
-                    jogo.mapa[sorteioLinha][sorteioColuna] = 2;
-                    cont++;
-			}
-		}
-	}
+            if(areaLivre == true) {
+                jogo.mapa[sorteioLinha][sorteioColuna] = 2;
+                cont++;
+            }
+        }
+    }
 }
 
-// procedimento que conta o timer da bomba e ao desativa-la aplica seus efeitos
+// Destrói caixas no raio da bomba e dropa power-ups
+void destruiCaixasComDrop(EstadoJogo& jogo, Jogador& p1, Bomba& bomba) {
+    int raio = 1 + p1.pus.nivelFogo;
+
+    auto tentaDestruir = [&](int lx, int ly) -> bool {
+        if(jogo.mapa[lx][ly] == 2) {
+            jogo.mapa[lx][ly] = 0;
+            p1.caixasDestruidas++;
+            sorteiaDropPowerUp(jogo, lx, ly); // chance de dropar item
+            return false; // caixa interrompe propagação
+        }
+        return false;
+    };
+
+    // Centro
+    tentaDestruir(bomba.x, bomba.y);
+
+    // Cima
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x - r][bomba.y] == 1) break;
+        if(tentaDestruir(bomba.x - r, bomba.y)) break;
+    }
+    // Baixo
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x + r][bomba.y] == 1) break;
+        if(tentaDestruir(bomba.x + r, bomba.y)) break;
+    }
+    // Esquerda
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x][bomba.y - r] == 1) break;
+        if(tentaDestruir(bomba.x, bomba.y - r)) break;
+    }
+    // Direita
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x][bomba.y + r] == 1) break;
+        if(tentaDestruir(bomba.x, bomba.y + r)) break;
+    }
+}
+
+// Verifica se uma célula está na área de explosão (respeitando raio e blocos)
+bool celulaNaExplosao(EstadoJogo& jogo, Bomba& bomba, int x, int y, int raio) {
+    if(x == bomba.x && y == bomba.y) return true;
+
+    // Cima
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x - r][bomba.y] == 1) break;
+        if(x == bomba.x - r && y == bomba.y) return true;
+    }
+    // Baixo
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x + r][bomba.y] == 1) break;
+        if(x == bomba.x + r && y == bomba.y) return true;
+    }
+    // Esquerda
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x][bomba.y - r] == 1) break;
+        if(x == bomba.x && y == bomba.y - r) return true;
+    }
+    // Direita
+    for(int r = 1; r <= raio; r++) {
+        if(jogo.mapa[bomba.x][bomba.y + r] == 1) break;
+        if(x == bomba.x && y == bomba.y + r) return true;
+    }
+    return false;
+}
+
 void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Inimigo inimigos[]){
 
     if(bomba.ativa == true) {
-			auto tempoAtual = chrono::steady_clock::now();
-            auto duracao = chrono::duration_cast<chrono::milliseconds>(tempoAtual - bomba.tempoPlantada).count();
+        auto tempoAtual = chrono::steady_clock::now();
+        auto duracao = chrono::duration_cast<chrono::milliseconds>(tempoAtual - bomba.tempoPlantada).count();
 
-			if(duracao >= 3000) {
-				bomba.ativa = false;
+        // TRAVA DO RELOGIO: Só explode sozinha se NÃO for relógio!
+        if(bomba.ehRelogio == false && duracao >= 3000) {
+            bomba.ativa = false;
 
-				if(jogo.mapa[bomba.x-1][bomba.y] == 2) {
-                        jogo.mapa[bomba.x-1][bomba.y] = 0;
-                        p1.caixasDestruidas++;
+            // Destrói caixas com drop de power-up
+            destruiCaixasComDrop(jogo, p1, bomba);
+
+            int raio = 1 + p1.pus.nivelFogo;
+
+            // Mata inimigos no raio
+            for(int k = 0; k < jogo.inimigosAtivos; k++) {
+                if(inimigos[k].vivo == true) {
+                    if(celulaNaExplosao(jogo, bomba, inimigos[k].x, inimigos[k].y, raio)) {
+                        inimigos[k].vivo = false;
+                        p1.inimigosAbatidos++;
+                        p1.pontuacao = calculaPontuacao(p1);
+                    }
                 }
-                if(jogo.mapa[bomba.x+1][bomba.y] == 2) {
-                    jogo.mapa[bomba.x+1][bomba.y] = 0;
-                    p1.caixasDestruidas++;
             }
-                if(jogo.mapa[bomba.x][bomba.y-1] == 2) {
-                    jogo.mapa[bomba.x][bomba.y-1] = 0;
-                    p1.caixasDestruidas++;
+
+            bomba.explosaoAtiva = true;
+            bomba.tempoExplosao = chrono::steady_clock::now();
+
+            // Verifica dano ao jogador
+            // Verifica dano ao jogador
+            if(celulaNaExplosao(jogo, bomba, p1.x, p1.y, raio)) {
+                if(p1.pus.escudos > 0) {
+                    p1.pus.escudos--; // absorve com escudo
+                } else {
+                    p1.pus.vidas--;
+                    if(p1.pus.vidas <= 0) {
+                        p1.vivo = false;
+                    } else {
+                        // Respawn na base para não morrer de novo no mesmo milissegundo
+                        p1.x = 1;
+                        p1.y = 1;
+                    }
                 }
-                if(jogo.mapa[bomba.x][bomba.y+1] == 2) {
-                    jogo.mapa[bomba.x][bomba.y+1] = 0;
-                    p1.caixasDestruidas++;
-                }
+            }
+        }
+    }
 
-				for(int k = 0; k < jogo.inimigosAtivos; k++) {
-					if(inimigos[k].vivo == true) {
-						if(inimigos[k].x == bomba.x && inimigos[k].y == bomba.y || inimigos[k].x == bomba.x - 1 && inimigos[k].y == bomba.y || inimigos[k].x == bomba.x + 1 && inimigos[k].y == bomba.y || inimigos[k].x == bomba.x && inimigos[k].y == bomba.y - 1 || inimigos[k].x == bomba.x && inimigos[k].y == bomba.y + 1) {
-							inimigos[k].vivo = false;
-							p1.inimigosAbatidos++;
-							p1.pontuacao = calculaPontuacao(p1);
-						}
-					}
-				}
-
-				bomba.explosaoAtiva = true;
-				bomba.tempoExplosao = chrono::steady_clock::now();
-
-				if(bomba.x == p1.x && bomba.y == p1.y) p1.vivo = false;
-				if(bomba.x -1 == p1.x && bomba.y == p1.y) p1.vivo = false;
-				if(bomba.x +1 == p1.x && bomba.y == p1.y) p1.vivo = false;
-				if(bomba.x == p1.x && bomba.y -1 == p1.y) p1.vivo = false;
-				if(bomba.x == p1.x && bomba.y +1 == p1.y) p1.vivo = false;
-			}
-		}
-
-		if(bomba.explosaoAtiva == true) {
-			auto tempoAtual = chrono::steady_clock::now();
-            auto duracao = chrono::duration_cast<chrono::milliseconds>(tempoAtual - bomba.tempoExplosao).count();
-			if(duracao >= 500) {
-				bomba.explosaoAtiva = false;
-			}
-		}
+    if(bomba.explosaoAtiva == true) {
+        auto tempoAtual = chrono::steady_clock::now();
+        auto duracao = chrono::duration_cast<chrono::milliseconds>(tempoAtual - bomba.tempoExplosao).count();
+        if(duracao >= 500) {
+            bomba.explosaoAtiva = false;
+        }
+    }
 }
 
 void carregaMapa(EstadoJogo& jogo) {
@@ -654,18 +906,20 @@ void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[],
     bomba.ativa = false;
     bomba.explosaoAtiva = false;
 
-    // Todas as fases agora começam com caixas e inimigos normais!
-    if(selDificuldade == 1) jogo.inimigosAtivos = 3;
+    // *** Power-ups resetam ao trocar de fase ***
+    inicializaPowerUpsJogador(p1);
+    limpaPowerUps(jogo);
+
+    if(selDificuldade == 1)      jogo.inimigosAtivos = 3;
     else if(selDificuldade == 2) jogo.inimigosAtivos = 5;
-    else jogo.inimigosAtivos = 7;
+    else                         jogo.inimigosAtivos = 7;
 
     for(int k = 0; k < jogo.inimigosAtivos; k++) inimigos[k].boss = false;
 
     sorteiaFrageis(jogo, p1);
     inicializaInimigos(jogo, inimigos, p1);
-
-    // ATENCAO: Apagamos o jogo.tempoInicio daqui para não resetar o Ranking!
 }
+
 void contagemRecursiva(int segundos) {
     if (segundos == 0) {
         cout << "\033[33m 0!\033[0m\n";
@@ -676,24 +930,36 @@ void contagemRecursiva(int segundos) {
 
     cout << "\033[33m" << segundos << "...\033[0m ";
 
-    // Pausa de 1 segundo
     auto inicioPausa = chrono::steady_clock::now();
     while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {}
 
     contagemRecursiva(segundos - 1);
 }
-// procedimento para verificar se as condicoes de vitoria ou derrota foram atingidas
+
 void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade){
     int inimigosMortos = 0;
     for(int k = 0; k < jogo.inimigosAtivos; k++){
-        if(inimigos[k].vivo == true && inimigos[k].x == p1.x && inimigos[k].y == p1.y) p1.vivo = false;
+        if(inimigos[k].vivo == true && inimigos[k].x == p1.x && inimigos[k].y == p1.y) {
+            if(p1.pus.escudos > 0) {
+                p1.pus.escudos--;
+                if(p1.x > 1) p1.x--;
+            } else {
+                p1.pus.vidas--;
+                if(p1.pus.vidas <= 0) {
+                    p1.vivo = false;
+                } else {
+                    // Respawn na base para não morrer de novo no mesmo milissegundo
+                    p1.x = 1;
+                    p1.y = 1;
+                }
+            }
+        }
         if(inimigos[k].vivo == false) inimigosMortos++;
     }
 
     if(inimigosMortos == jogo.inimigosAtivos && bomba.explosaoAtiva == false) {
         if(jogo.fase == 3) {
             if(jogo.spawnaBoss == false) {
-                // O Boss nasce no mapa!
                 jogo.spawnaBoss = true;
                 jogo.inimigosAtivos = 1;
                 inimigos[0].vivo = true;
@@ -703,7 +969,6 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
                 inimigos[0].passos = 0;
                 inimigos[0].direcao = 0;
             } else {
-                // Boss morreu = vitória final
                 #ifdef _WIN32
                     COORD coord; coord.X = 0; coord.Y = 0;
                     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
@@ -717,15 +982,12 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
                 jogo.rodando = false;
             }
         } else {
-            jogo.portalAtivo = true; // Fases 1 e 2: ativa o portal
+            jogo.portalAtivo = true;
         }
     }
 
-    // Jogador entrou no portal (Com transicao suave para nao ser abrupto)
-    // Jogador entrou no portal (Com animação e recursividade)
     if(jogo.portalAtivo && p1.x == jogo.portalX && p1.y == jogo.portalY) {
 
-        // 1. Força a impressão da tela para MOSTRAR o jogador no portal
         #ifdef _WIN32
             COORD coord; coord.X = 0; coord.Y = 0;
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
@@ -734,11 +996,9 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
         #endif
         imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
 
-        // 2. Aciona o texto e a função recursiva
         cout << "\n\n\t\033[36m AVANCANDO PARA A FASE " << jogo.fase + 1 << " EM: \033[0m";
         contagemRecursiva(3);
 
-        // 3. Muda a fase de fato
         jogo.portalAtivo = false;
         avancaFase(jogo, p1, bomba, inimigos, selDificuldade);
     }
@@ -798,14 +1058,12 @@ for(int i = 0; i < 19; i++){
         case 12: cout<< "\033[44m🧱\033[0m"; break;
         case 13: cout<< "\033[104m👹\033[0m"; break;
         case 14: cout<< "\033[40m  \033[0m"; break;
-
         }
     }
     cout << "\n";
 }
-
 }
-// procedimento que desenha a tela final
+
 void imprimeTela(bool vencedor){
     int matGameOver[19][25] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
                                 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
@@ -878,9 +1136,6 @@ void imprimeTela(bool vencedor){
             cout << "\n";
         }
     }
-
-
-
 }
 
 void salvaRanking(Jogador p1, EstadoJogo jogo){
@@ -906,17 +1161,15 @@ void salvaRanking(Jogador p1, EstadoJogo jogo){
     }else{
         cout << "Erro ao salvar!!!" << endl;
     }
-
 }
 
 void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade){
     cout << "\033[J";
     p1.caixasDestruidas = 0;
 
-
     jogo.fase=1;
     tocaMusica(1);
-    if(selDificuldade == 1) jogo.inimigosAtivos = 3;
+    if(selDificuldade == 1)      jogo.inimigosAtivos = 3;
     else if(selDificuldade == 2) jogo.inimigosAtivos = 5;
     else if(selDificuldade == 3) jogo.inimigosAtivos = 7;
 
@@ -942,14 +1195,16 @@ void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[],
     jogo.portalX = 9;
     jogo.portalY = 12;
 
-    sorteiaFrageis(jogo, p1);
+    // Inicializa power-ups zerados
+    inicializaPowerUpsJogador(p1);
+    limpaPowerUps(jogo);
 
+    sorteiaFrageis(jogo, p1);
     inicializaInimigos(jogo, inimigos, p1);
 
     jogo.tempoInicio = chrono::steady_clock::now();
-
-
 }
+
 int main() {
     system ("chcp 65001");
     #ifdef _WIN32
@@ -965,17 +1220,16 @@ int main() {
         coord.Y = CY;
     #endif
 
+    srand(time(NULL));
+    enableANSI();
 
-	srand(time(NULL));
-	enableANSI();
-
-	#ifdef _WIN32
+    #ifdef _WIN32
         DWORD volume = 0x33FF33FF;
         waveOutSetVolume(0, volume);
     #endif
     tocaMusica(0);
 
-	EstadoJogo jogo;
+    EstadoJogo jogo;
     Jogador p1;
     Bomba bomba;
     Inimigo inimigos[maxInimigos];
@@ -1033,7 +1287,6 @@ int main() {
                                 detonaBomba(jogo, bomba, p1, inimigos);
 
                                 verificaFim(jogo, p1, bomba, inimigos, selDificuldade);
-
                     }
                     #ifdef _WIN32
                         SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
@@ -1041,20 +1294,16 @@ int main() {
                         cout << "\033[H";
                     #endif
 
-
                         imprimeTela(jogo.vencedor);
                         salvaRanking(p1, jogo);
                         cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
-
 
                         #ifdef _WIN32
                                 SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
                         #else
                                 cout << "\033[H";
                         #endif
-                        while(_kbhit()) {
-                            getch();
-                        }
+                        while(_kbhit()) { getch(); }
                         cin.clear();
                         getch();
                         #ifdef _WIN32
@@ -1080,7 +1329,6 @@ int main() {
                         imprimeTela();
                         cout << "\033[J";
 
-
                         cout << "\nEscolha a dificuldade: \n1- Facil \n2- Intermediario \n3- Dificil\n";
                         cin >> selDificuldade;
 
@@ -1089,15 +1337,9 @@ int main() {
                             cin.ignore(10000, '\n');
                             selDificuldade = 0;
                         }
-                        if(selDificuldade == 1){
-                            jogo.inimigosAtivos = 3;
-                        }
-                        if(selDificuldade == 2){
-                            jogo.inimigosAtivos = 5;
-                        }
-                        if(selDificuldade == 3){
-                            jogo.inimigosAtivos = 7;
-                        }
+                        if(selDificuldade == 1) jogo.inimigosAtivos = 3;
+                        if(selDificuldade == 2) jogo.inimigosAtivos = 5;
+                        if(selDificuldade == 3) jogo.inimigosAtivos = 7;
 
                     }while(selDificuldade < 1 || selDificuldade > 3);
                     break;
@@ -1126,7 +1368,16 @@ int main() {
                     cout << "  \033[42m💣\033[0m  Bomba plantada - explode em 3 segundos.\n";
                     cout << "  \033[103m💥\033[0m  Explosao - mata inimigos e destroi caixas.\n";
                     cout << "  \033[42m🧱\033[0m  Caixa destruivel pela bomba.\n";
-                    cout << "  \033[47m  \033[0m  Parede solida - não e destruivel.\n";
+                    cout << "  \033[47m  \033[0m  Parede solida - nao e destruivel.\n";
+
+                    cout << "\n\033[33mPOWER-UPS (dropam de caixas destruidas):\033[0m\n";
+                    cout << "  🔥 Fogo+     -> Aumenta raio de explosao (+1, cumulativo)\n";
+                    cout << "  💣 Bomba+    -> Aumenta qtd de bombas simultaneas (cumulativo)\n";
+                    cout << "  ❤️  Vida+     -> Vida extra, sobrevive a um dano (cumulativo)\n";
+                    cout << "  ⏰ Relogio  -> Proxima bomba explode instantaneamente\n";
+                    cout << "  🛡️  Escudo    -> Absorve um dano de bomba ou inimigo\n";
+                    cout << "  👻 Fantasma -> Atravessa caixas destruiveis temporariamente\n";
+                    cout << "  OBS: power-ups RESETAM ao avancar de fase!\n";
 
                     cout << "\n\033[33mOBJETIVO:\033[0m\n";
                     cout << "  Elimine todos os inimigos usando bombas para vencer!\n";
@@ -1134,8 +1385,8 @@ int main() {
 
                     cout << "\n\033[33mDIFICULDADE:\033[0m\n";
                     cout << "  Facil        -> 3 inimigos, movimento aleatorio\n";
-                    cout << "  Intermediario-> 5 inimigos, 50% de chance de te perseguir\n";
-                    cout << "  Dificil      -> 7 inimigos, 75% de chance de te perseguir\n";
+                    cout << "  Intermediario-> 5 inimigos, 50%% de chance de te perseguir\n";
+                    cout << "  Dificil      -> 7 inimigos, 75%% de chance de te perseguir\n";
 
                     cout << "\n\033[33mPONTUACAO:\033[0m\n";
                     cout << "  Cada inimigo abatido    -> +100 pontos\n";
@@ -1174,7 +1425,6 @@ int main() {
 
                             while(arqRank >> lista[totalJogadores].data >> lista[totalJogadores].nomeJogador >> lista[totalJogadores].tempoPartida >> lista[totalJogadores].movimentos >> lista[totalJogadores].bombasUsadas >> lista[totalJogadores].pontosJogador){
                                 totalJogadores++;
-
                             }
                             arqRank.close();
 
@@ -1185,7 +1435,7 @@ int main() {
                         for(int i = 0; i < totalJogadores - 1; i++){
                             for(int j = 0; j < totalJogadores - i - 1; j++){
                                 if(lista[j].pontosJogador < lista[j+1].pontosJogador){
-                                    troca(lista[j], lista[j+1]); // O Template agindo aqui!
+                                    troca(lista[j], lista[j+1]);
                                 }
                             }
                         }
@@ -1202,19 +1452,17 @@ int main() {
                             cout << segundos << "s\t";
 
                             cout << "  " << lista[i].pontosJogador << endl;
-                            }
+                        }
                         cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
                         while(_kbhit()) { getch(); }
                             cin.clear();
                             getch();
                         break;
-
-
-
             }
     }while(opcao != 5);
 
     cout << "\n\nOBRIGADO POR JOGAR!" << endl;
 
-	return 0;
+    return 0;
 }
+
