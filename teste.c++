@@ -14,6 +14,7 @@ Guilherme Melo
 #include <locale.h>
 #include <fstream>
 #include <string>
+#include <thread>
 
 // multiplataforma
 #ifdef _WIN32
@@ -543,11 +544,46 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba& bomba, Bomba
     cout << "\033[J";
 }
 
+void movimentaIA(EstadoJogo& jogo, Jogador& bot, Bomba& bomba) {
+    int direcao = rand() % 5;
+
+    switch(direcao) {
+        case 0: // cima
+            if(!celulaBloqueia(jogo, bot, bot.x - 1, bot.y)) bot.x--;
+            break;
+        case 1: // baixo
+            if(!celulaBloqueia(jogo, bot, bot.x + 1, bot.y)) bot.x++;
+            break;
+        case 2: // esquerda
+            if(!celulaBloqueia(jogo, bot, bot.x, bot.y - 1)) bot.y--;
+            break;
+        case 3: // direita
+            if(!celulaBloqueia(jogo, bot, bot.x, bot.y + 1)) bot.y++;
+            break;
+        case 4: // bomba
+            if(!bomba.ativa && !bomba.explosaoAtiva) {
+                bomba.ativa = true;
+                bomba.x = bot.x;
+                bomba.y = bot.y;
+                bomba.tempoPlantada = chrono::steady_clock::now();
+                bomba.ehRelogio = bot.pus.temRelogio;
+            }
+            break;
+    }
+    bot.qtdMovimentos++;
+}
+
+// procedimento para executar as acoes do jogador no mapa
 // procedimento para executar as acoes do jogador no mapa
 void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba& bomba1, Bomba& bomba2) {
-    char tecla;
+    int tecla;
     if ( _kbhit() ) {
         tecla = getch();
+
+        // CORREÇÃO: Tratamento para setas no Windows (evita duplo clique)
+        if (tecla == 224 || tecla == 0 || tecla == -32) {
+            tecla = getch();
+        }
 
         // --- CONTROLES DO JOGADOR 1 (WASD) ---
         if(p1.vivo) {
@@ -588,7 +624,6 @@ void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba& bomba1
         coletaPowerUp(jogo, p2);
     }
 }
-
 bool temInimigoNaCasa(int x, int y, int indexAtual, Inimigo inimigos[], unsigned total) {
     for(int k = 0; k < total; k++) {
         if(k != indexAtual && inimigos[k].vivo && inimigos[k].x == x && inimigos[k].y == y)
@@ -835,22 +870,18 @@ bool celulaNaExplosao(EstadoJogo& jogo, Bomba& bomba, int x, int y, int raio) {
     return false;
 }
 
-void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Inimigo inimigos[]){
+// CORREÇÃO: Recebendo p1 e p2 para checar dano em ambos!
+void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Jogador& p2, Inimigo inimigos[]){
 
     if(bomba.ativa == true) {
         auto tempoAtual = chrono::steady_clock::now();
         auto duracao = chrono::duration_cast<chrono::milliseconds>(tempoAtual - bomba.tempoPlantada).count();
 
-        // TRAVA DO RELOGIO: Só explode sozinha se NÃO for relógio!
         if(bomba.ehRelogio == false && duracao >= 3000) {
             bomba.ativa = false;
-
-            // Destrói caixas com drop de power-up
             destruiCaixasComDrop(jogo, p1, bomba);
-
             int raio = 1 + p1.pus.nivelFogo;
 
-            // Mata inimigos no raio
             for(int k = 0; k < jogo.inimigosAtivos; k++) {
                 if(inimigos[k].vivo == true) {
                     if(celulaNaExplosao(jogo, bomba, inimigos[k].x, inimigos[k].y, raio)) {
@@ -864,20 +895,22 @@ void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Inimigo inimigos[]
             bomba.explosaoAtiva = true;
             bomba.tempoExplosao = chrono::steady_clock::now();
 
-            // Verifica dano ao jogador
-            // Verifica dano ao jogador
+            // Verifica dano ao P1
             if(celulaNaExplosao(jogo, bomba, p1.x, p1.y, raio)) {
-                if(p1.pus.escudos > 0) {
-                    p1.pus.escudos--; // absorve com escudo
-                } else {
+                if(p1.pus.escudos > 0) p1.pus.escudos--;
+                else {
                     p1.pus.vidas--;
-                    if(p1.pus.vidas <= 0) {
-                        p1.vivo = false;
-                    } else {
-                        // Respawn na base para não morrer de novo no mesmo milissegundo
-                        p1.x = 1;
-                        p1.y = 1;
-                    }
+                    if(p1.pus.vidas <= 0) p1.vivo = false;
+                    else { p1.x = 1; p1.y = 1; }
+                }
+            }
+            // Verifica dano ao P2
+            if(jogo.modoJogo >= 2 && celulaNaExplosao(jogo, bomba, p2.x, p2.y, raio)) {
+                if(p2.pus.escudos > 0) p2.pus.escudos--;
+                else {
+                    p2.pus.vidas--;
+                    if(p2.pus.vidas <= 0) p2.vivo = false;
+                    else { p2.x = 1; p2.y = 2; }
                 }
             }
         }
@@ -886,12 +919,9 @@ void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& p1, Inimigo inimigos[]
     if(bomba.explosaoAtiva == true) {
         auto tempoAtual = chrono::steady_clock::now();
         auto duracao = chrono::duration_cast<chrono::milliseconds>(tempoAtual - bomba.tempoExplosao).count();
-        if(duracao >= 500) {
-            bomba.explosaoAtiva = false;
-        }
+        if(duracao >= 500) bomba.explosaoAtiva = false;
     }
 }
-
 void carregaMapa(EstadoJogo& jogo) {
     const int (*mapa)[25];
 
@@ -1324,8 +1354,7 @@ int main() {
 
             switch(opcao){
                 case 1:
-
-                    // --- NOVO SUB-MENU ---
+                    // --- SUB-MENU DO MODO DE JOGO ---
                     do {
                         #ifdef _WIN32
                             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
@@ -1337,7 +1366,7 @@ int main() {
                         cout << "\nSelecione o Modo de Jogo:\n";
                         cout << "1- 1 Jogador\n";
                         cout << "2- 2 Jogadores (Cooperativo)\n";
-                        cout << "3- PC vs PC (Em breve)\n";
+                        cout << "3- PC vs PC\n";
                         cout << "Escolha: ";
                         cin >> jogo.modoJogo;
 
@@ -1348,73 +1377,75 @@ int main() {
                         }
                     } while(jogo.modoJogo < 1 || jogo.modoJogo > 3);
 
-                    // --- SWITCH DO MODO DE JOGO ---
-                    switch(jogo.modoJogo) {
-                        case 1:
-                        case 2:
-                            // Inicia o jogo para 1 ou 2 jogadores
-                            resetaJogo(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
+                    // Prepara o jogo para qualquer um dos 3 modos
+                    resetaJogo(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
 
-                            while(jogo.rodando == true) {
-                                #ifdef _WIN32
-                                        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-                                #else
-                                        cout << "\033[H";
-                                #endif
-
-                                imprimeMapa(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
-                                executaMovimentos(jogo, p1, p2, bomba, bombaP2);
-
-                                auto tempoAtual_inimigos = chrono::steady_clock::now();
-                                auto duracaoInimigos = chrono::duration_cast < chrono::milliseconds>(tempoAtual_inimigos - tempoInimigos).count();
-
-                                if(duracaoInimigos >= 500) {
-                                    movimentaInimigos(jogo, inimigos, bomba, p1, selDificuldade);
-                                    tempoInimigos = chrono::steady_clock::now();
-                                }
-
-                                detonaBomba(jogo, bomba, p1, inimigos);
-                                detonaBomba(jogo, bombaP2, p2, inimigos);
-                                verificaFim(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
-                            }
-
-                            // Tela de fim de jogo e Ranking
-                            #ifdef _WIN32
+                    while(jogo.rodando == true) {
+                        #ifdef _WIN32
                                 SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-                            #else
+                        #else
                                 cout << "\033[H";
-                            #endif
+                        #endif
 
-                            imprimeTela(jogo.vencedor);
-                            salvaRanking(p1, jogo);
-                            cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
+                        imprimeMapa(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
 
-                            #ifdef _WIN32
-                                SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-                            #else
-                                cout << "\033[H";
-                            #endif
-                            while(_kbhit()) { getch(); }
-                            cin.clear();
-                            getch();
-                            #ifdef _WIN32
-                                system ("cls");
-                            #else
-                                system ("clear");
-                            #endif
-                            cout << "\033[2J\033[H";
+                        // --- VERIFICA QUEM ESTÁ JOGANDO ---
+                        if (jogo.modoJogo == 1 || jogo.modoJogo == 2) {
+                            executaMovimentos(jogo, p1, p2, bomba, bombaP2);
+                        } else if (jogo.modoJogo == 3) {
+                            movimentaIA(jogo, p1, bomba);
+                            movimentaIA(jogo, p2, bombaP2);
+                            coletaPowerUp(jogo, p1);
+                            coletaPowerUp(jogo, p2);
+                            this_thread::sleep_for(chrono::milliseconds(150)); // Controla velocidade dos bots
+                        }
 
-                            tocaMusica(0);
-                            break; // Encerra os cases 1 e 2 do modo de jogo
+                        auto tempoAtual_inimigos = chrono::steady_clock::now();
+                        auto duracaoInimigos = chrono::duration_cast < chrono::milliseconds>(tempoAtual_inimigos - tempoInimigos).count();
 
-                        case 3:
-                            // Modo em desenvolvimento (não inicia a partida)
-                            cout << "\nModo PC vs PC ainda em desenvolvimento!\n";
-                            auto inicioPausa = chrono::steady_clock::now();
-                            while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 2000) {}
-                            break; // Encerra o case 3
+                        if(duracaoInimigos >= 500) {
+                            movimentaInimigos(jogo, inimigos, bomba, p1, selDificuldade);
+                            tempoInimigos = chrono::steady_clock::now();
+                        }
+
+                        // CORREÇÃO DA CHAMADA: Passando ambos os jogadores para as bombas
+                        detonaBomba(jogo, bomba, p1, p2, inimigos);
+                        detonaBomba(jogo, bombaP2, p1, p2, inimigos);
+
+                        verificaFim(jogo, p1, p2, bomba, bombaP2, inimigos, selDificuldade);
                     }
-                    break;
+
+                    // --- TELA DE FIM DE JOGO E RANKING ---
+                    #ifdef _WIN32
+                        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                    #else
+                        cout << "\033[H";
+                    #endif
+
+                    imprimeTela(jogo.vencedor);
+                    if (jogo.modoJogo != 3) { // Se foram bots jogando, não faz sentido salvar no ranking
+                        salvaRanking(p1, jogo);
+                    }
+
+                    cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
+
+                    #ifdef _WIN32
+                        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                    #else
+                        cout << "\033[H";
+                    #endif
+                    while(_kbhit()) { getch(); }
+                    cin.clear();
+                    getch();
+                    #ifdef _WIN32
+                        system ("cls");
+                    #else
+                        system ("clear");
+                    #endif
+                    cout << "\033[2J\033[H";
+
+                    tocaMusica(0);
+                    break; // Fim do Case 1 do Menu Principal
 
                 case 2:
 
