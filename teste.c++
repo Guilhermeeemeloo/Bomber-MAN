@@ -778,7 +778,7 @@ void destruiCaixasComDrop(EstadoJogo& jogo, Jogador& p1, Bomba& bomba) {
             jogo.mapa[lx][ly] = 0;
             p1.caixasDestruidas++;
             sorteiaDropPowerUp(jogo, lx, ly); // chance de dropar item
-            return false; // caixa interrompe propagação
+            return false;
         }
         return false;
     };
