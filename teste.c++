@@ -607,6 +607,22 @@ void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[],
 
     // ATENCAO: Apagamos o jogo.tempoInicio daqui para não resetar o Ranking!
 }
+void animacaoPortalRecursiva(int segundos) {
+    if (segundos == 0) {
+        cout << "\033[33m 0!\033[0m\n";
+        auto inicioPausa = chrono::steady_clock::now();
+        while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 500) {}
+        return;
+    }
+
+    cout << "\033[33m" << segundos << "...\033[0m ";
+
+    // Pausa de 1 segundo
+    auto inicioPausa = chrono::steady_clock::now();
+    while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {}
+
+    animacaoPortalRecursiva(segundos - 1);
+}
 // procedimento para verificar se as condicoes de vitoria ou derrota foram atingidas
 void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade){
     int inimigosMortos = 0;
@@ -647,11 +663,23 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
     }
 
     // Jogador entrou no portal (Com transicao suave para nao ser abrupto)
+    // Jogador entrou no portal (Com animação e recursividade)
     if(jogo.portalAtivo && p1.x == jogo.portalX && p1.y == jogo.portalY) {
-        cout << "\n\n\t\033[36m AVANCANDO PARA A FASE " << jogo.fase + 1 << "...\033[0m";
-        auto inicioPausa = chrono::steady_clock::now();
-        while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1500) {}
 
+        // 1. Força a impressão da tela para MOSTRAR o jogador no portal
+        #ifdef _WIN32
+            COORD coord; coord.X = 0; coord.Y = 0;
+            SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+        #else
+            cout << "\033[H";
+        #endif
+        imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
+
+        // 2. Aciona o texto e a função recursiva
+        cout << "\n\n\t\033[36m AVANCANDO PARA A FASE " << jogo.fase + 1 << " EM: \033[0m";
+        animacaoPortalRecursiva(3);
+
+        // 3. Muda a fase de fato
         jogo.portalAtivo = false;
         avancaFase(jogo, p1, bomba, inimigos, selDificuldade);
     }
