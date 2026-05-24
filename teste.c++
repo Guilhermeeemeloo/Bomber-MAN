@@ -379,7 +379,29 @@ void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Bomba& bomba) {
         }
 	}
 }
+bool temInimigoNaCasa(int x, int y, int indexAtual, Inimigo inimigos[], unsigned total) {
+    for(int k = 0; k < total; k++) {
+        if(k != indexAtual && inimigos[k].vivo && inimigos[k].x == x && inimigos[k].y == y)
+            return true;
+    }
+    return false;
+}
+bool ehAreaPerigosa(int x, int y, Bomba& bomba) {
+    // Checa se é a bomba física
+    if (bomba.ativa && x == bomba.x && y == bomba.y) return true;
 
+    // Checa se é a área de explosão (cruz central + 4 lados)
+    if (bomba.explosaoAtiva) {
+        if ((x == bomba.x && y == bomba.y) ||
+            (x == bomba.x - 1 && y == bomba.y) ||
+            (x == bomba.x + 1 && y == bomba.y) ||
+            (x == bomba.x && y == bomba.y - 1) ||
+            (x == bomba.x && y == bomba.y + 1)) {
+            return true;
+        }
+    }
+    return false;
+}
 // procedimento para movimentar os inimigos no mapa      //Alterar Aqui a dificuldade
 void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogador& p1, unsigned selDificuldade) {
 
@@ -455,7 +477,8 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
         switch(inimigos[k].direcao) {
         case 0: // Cima
             if(jogo.mapa[inimigos[k].x - 1][inimigos[k].y] == 0 &&
-                (bomba.ativa == false || (inimigos[k].x - 1 != bomba.x || inimigos[k].y != bomba.y))) {
+               !ehAreaPerigosa(inimigos[k].x - 1, inimigos[k].y, bomba) &&
+               !temInimigoNaCasa(inimigos[k].x - 1, inimigos[k].y, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].x--;
                 inimigos[k].passos--;
             } else {
@@ -464,7 +487,8 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
             break;
         case 1: // Baixo
             if(jogo.mapa[inimigos[k].x + 1][inimigos[k].y] == 0 &&
-                (bomba.ativa == false || (inimigos[k].x + 1 != bomba.x || inimigos[k].y != bomba.y))) {
+               !ehAreaPerigosa(inimigos[k].x + 1, inimigos[k].y, bomba) &&
+               !temInimigoNaCasa(inimigos[k].x + 1, inimigos[k].y, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].x++;
                 inimigos[k].passos--;
             } else {
@@ -472,8 +496,9 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
             }
             break;
         case 2: // Esquerda
-            if(jogo.mapa[inimigos[k].x][inimigos[k].y - 1] == 0 &&
-                (bomba.ativa == false || (inimigos[k].x != bomba.x || inimigos[k].y - 1 != bomba.y))) {
+            if(jogo.mapa[inimigos[k].x][inimigos[k].y-1] == 0 &&
+               !ehAreaPerigosa(inimigos[k].x, inimigos[k].y-1, bomba) &&
+               !temInimigoNaCasa(inimigos[k].x, inimigos[k].y-1, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].y--;
                 inimigos[k].passos--;
             } else {
@@ -481,8 +506,9 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba& bomba, Jogad
             }
             break;
         case 3: // Direita
-            if(jogo.mapa[inimigos[k].x][inimigos[k].y + 1] == 0 &&
-                (bomba.ativa == false || (inimigos[k].x != bomba.x || inimigos[k].y + 1 != bomba.y))) {
+            if(jogo.mapa[inimigos[k].x][inimigos[k].y+1] == 0 &&
+               !ehAreaPerigosa(inimigos[k].x, inimigos[k].y+1, bomba) &&
+               !temInimigoNaCasa(inimigos[k].x, inimigos[k].y+1, k, inimigos, jogo.inimigosAtivos)) {
                 inimigos[k].y++;
                 inimigos[k].passos--;
             } else {
