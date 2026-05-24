@@ -151,6 +151,7 @@ struct EstadoJogo {
     bool portalAtivo;
     int portalX;
     int portalY;
+    bool spawnaBoss;
 };
 
 void enableANSI() {
@@ -227,6 +228,10 @@ double calculaPontuacao(Jogador& p1) {
 // procedimento para desenhar o mapa do jogo
 void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade = 1) {
 
+    string corChao = "\033[42m"; // Verde Fase 1
+    if (jogo.fase == 2) corChao = "\033[46m"; // Azul Fase 2
+    if (jogo.fase == 3) corChao = "\033[100m"; // Cinza Escuro Fase 3
+
 	for(int i=0; i<19; i++) {
 		for(int j=0; j<25; j++) {
 
@@ -235,13 +240,13 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 
 			}else if(i==p1.x && j==p1.y) {
 				if(p1.vivo == true){
-                    cout<< "\033[42m🧔\033[0m";
+                    cout<< corChao << "🧔\033[0m";
 				}else{
-                    cout<< "\033[42m🪦\033[0m";
+                    cout<< corChao<< "🪦\033[0m";
 				}
 
 			}else if(bomba.ativa == true && i==bomba.x && j==bomba.y) {
-				cout << "\033[42m💣\033[0m";
+				cout << corChao << "💣\033[0m";
 
 			}else if(jogo.portalAtivo && i == jogo.portalX && j == jogo.portalY) {
                 cout << "\033[45m🌀\033[0m";
@@ -255,17 +260,17 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]
 				}
 
 				if(inimigoAqui == true) {
-					cout << "\033[42m👹";
+					cout << corChao << "👹";
 				}else{
 					switch (jogo.mapa[i][j]) {
 					case 0:
-						cout<< "\033[42m  \033[0m";
+						cout<< corChao << "  \033[0m";
 						break;
 					case 1:
 						cout<< "\033[47m  \033[0m";
 						break;
 					case 2:
-						cout<< "\033[42m🧱\033[0m";
+						cout<< corChao << "🧱\033[0m";
 						break;
 					}
 				}
@@ -579,83 +584,78 @@ void carregaMapa(EstadoJogo& jogo) {
             jogo.mapa[i][j] = mapa[i][j];
 }
 
-void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]) {
+void avancaFase(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade) {
     jogo.fase++;
     jogo.portalAtivo = false;
+    jogo.spawnaBoss = false;
     carregaMapa(jogo);
 
-    // Reposiciona jogador
     p1.x = 1;
     p1.y = 1;
-
-    // Reseta bomba
     bomba.ativa = false;
     bomba.explosaoAtiva = false;
 
-    // Fase 3: apenas o boss
-    if(jogo.fase == 3) {
-        jogo.inimigosAtivos = 1;
-        inimigos[0].vivo = true;
-        inimigos[0].boss = true;
-        inimigos[0].x = 17; // spawn fixo canto oposto ao jogador
-        inimigos[0].y = 23;
-        inimigos[0].passos = 0;
-        inimigos[0].direcao = 0;
-    } else {
-        // Fase 2: inimigos normais
-        for(int k = 0; k < jogo.inimigosAtivos; k++)
-            inimigos[k].boss = false;
-        sorteiaFrageis(jogo, p1);
-        inicializaInimigos(jogo, inimigos, p1);
-    }
+    // Todas as fases agora começam com caixas e inimigos normais!
+    if(selDificuldade == 1) jogo.inimigosAtivos = 3;
+    else if(selDificuldade == 2) jogo.inimigosAtivos = 5;
+    else jogo.inimigosAtivos = 7;
 
-    jogo.tempoInicio = chrono::steady_clock::now();
+    for(int k = 0; k < jogo.inimigosAtivos; k++) inimigos[k].boss = false;
+
+    sorteiaFrageis(jogo, p1);
+    inicializaInimigos(jogo, inimigos, p1);
+
+    // ATENCAO: Apagamos o jogo.tempoInicio daqui para não resetar o Ranking!
 }
-
 // procedimento para verificar se as condicoes de vitoria ou derrota foram atingidas
 void verificaFim(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade){
-
     int inimigosMortos = 0;
-
     for(int k = 0; k < jogo.inimigosAtivos; k++){
-        if(inimigos[k].vivo == true && inimigos[k].x == p1.x && inimigos[k].y == p1.y){
-            p1.vivo = false;
-        }
-        if(inimigos[k].vivo == false){
-            inimigosMortos++;
-        }
+        if(inimigos[k].vivo == true && inimigos[k].x == p1.x && inimigos[k].y == p1.y) p1.vivo = false;
+        if(inimigos[k].vivo == false) inimigosMortos++;
     }
 
-    // Todos os inimigos morreram
     if(inimigosMortos == jogo.inimigosAtivos && bomba.explosaoAtiva == false) {
-
         if(jogo.fase == 3) {
-            // Boss morreu = vitória final
-            #ifdef _WIN32
-                COORD coord; coord.X = 0; coord.Y = 0;
-                SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-            #else
-                cout << "\033[H";
-            #endif
-            jogo.vencedor = true;
-            imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
-            auto inicioPausa = chrono::steady_clock::now();
-            while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {}
-            jogo.rodando = false;
-
+            if(jogo.spawnaBoss == false) {
+                // O Boss nasce no mapa!
+                jogo.spawnaBoss = true;
+                jogo.inimigosAtivos = 1;
+                inimigos[0].vivo = true;
+                inimigos[0].boss = true;
+                inimigos[0].x = 17;
+                inimigos[0].y = 23;
+                inimigos[0].passos = 0;
+                inimigos[0].direcao = 0;
+            } else {
+                // Boss morreu = vitória final
+                #ifdef _WIN32
+                    COORD coord; coord.X = 0; coord.Y = 0;
+                    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+                #else
+                    cout << "\033[H";
+                #endif
+                jogo.vencedor = true;
+                imprimeMapa(jogo, p1, bomba, inimigos, selDificuldade);
+                auto inicioPausa = chrono::steady_clock::now();
+                while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1000) {}
+                jogo.rodando = false;
+            }
         } else {
-            // Fases 1 e 2: ativa o portal
-            jogo.portalAtivo = true;
+            jogo.portalAtivo = true; // Fases 1 e 2: ativa o portal
         }
     }
 
-    // Jogador entrou no portal
+    // Jogador entrou no portal (Com transicao suave para nao ser abrupto)
     if(jogo.portalAtivo && p1.x == jogo.portalX && p1.y == jogo.portalY) {
+        cout << "\n\n\t\033[36m AVANCANDO PARA A FASE " << jogo.fase + 1 << "...\033[0m";
+        auto inicioPausa = chrono::steady_clock::now();
+        while(chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - inicioPausa).count() < 1500) {}
+
         jogo.portalAtivo = false;
-        avancaFase(jogo, p1, bomba, inimigos);
+        avancaFase(jogo, p1, bomba, inimigos, selDificuldade);
     }
 
-    // Jogador morreu
     if(p1.vivo == false && bomba.explosaoAtiva == false){
         #ifdef _WIN32
             COORD coord; coord.X = 0; coord.Y = 0;
@@ -810,12 +810,17 @@ void salvaRanking(Jogador p1, EstadoJogo jogo){
 
 }
 
-void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[]){
+void resetaJogo(EstadoJogo& jogo, Jogador& p1, Bomba& bomba, Inimigo inimigos[], unsigned selDificuldade){
     cout << "\033[J";
     p1.caixasDestruidas = 0;
 
 
     jogo.fase=1;
+    if(selDificuldade == 1) jogo.inimigosAtivos = 3;
+    else if(selDificuldade == 2) jogo.inimigosAtivos = 5;
+    else if(selDificuldade == 3) jogo.inimigosAtivos = 7;
+
+    jogo.spawnaBoss = false;
     carregaMapa(jogo);
 
     jogo.rodando = true;
@@ -876,7 +881,7 @@ int main() {
     pRanking temp;
     int totalJogadores;
     unsigned opcao;
-    unsigned selDificuldade;
+    unsigned selDificuldade = 1;
     char lido;
     ifstream arqRank;
     do{
@@ -898,7 +903,7 @@ int main() {
 
             switch(opcao){
                 case 1:
-                    resetaJogo(jogo, p1, bomba, inimigos);
+                    resetaJogo(jogo, p1, bomba, inimigos, selDificuldade);
 
                     while(jogo.rodando == true) {
                         #ifdef _WIN32
