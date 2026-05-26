@@ -501,26 +501,153 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
     }
     cout << "\033[J";
 }
-void movimentaIA(EstadoJogo& jogo, Jogador& bot, Bomba bombas[]) {
-    if (!bot.vivo) return;
-    int direcao = rand() % 5;
-
-    switch(direcao) {
-        case 0: if(!celulaBloqueia(jogo, bot, bot.x - 1, bot.y)) bot.x--; break;
-        case 1: if(!celulaBloqueia(jogo, bot, bot.x + 1, bot.y)) bot.x++; break;
-        case 2: if(!celulaBloqueia(jogo, bot, bot.x, bot.y - 1)) bot.y--; break;
-        case 3: if(!celulaBloqueia(jogo, bot, bot.x, bot.y + 1)) bot.y++; break;
-        case 4:
-            if(!bombas[0].ativa && !bombas[0].explosaoAtiva) {
-                bombas[0].ativa = true; bombas[0].x = bot.x; bombas[0].y = bot.y;
-                bombas[0].tempoPlantada = chrono::steady_clock::now();
-                bombas[0].ehRelogio = bot.pus.temRelogio;
-            }
-            break;
+bool ehAreaPerigosa(EstadoJogo& jogo, int x, int y, Bomba bombasP1[], Bomba bombasP2[], int nivelFogoP1, int nivelFogoP2) {
+    // Verifica todas as bombas do P1
+    for(int i = 0; i < 5; i++) {
+        // Se a bomba está plantada, a área de fogo futura é perigosa
+        if (bombasP1[i].ativa && celulaNaExplosao(jogo, bombasP1[i], x, y, 1 + nivelFogoP1)) return true;
+        // Se já está explodindo, a área de fogo atual é perigosa
+        if (bombasP1[i].explosaoAtiva && celulaNaExplosao(jogo, bombasP1[i], x, y, 1 + nivelFogoP1)) return true;
     }
-    bot.qtdMovimentos++;
+    // Verifica todas as bombas do P2
+    for(int i = 0; i < 5; i++) {
+        if (bombasP2[i].ativa && celulaNaExplosao(jogo, bombasP2[i], x, y, 1 + nivelFogoP2)) return true;
+        if (bombasP2[i].explosaoAtiva && celulaNaExplosao(jogo, bombasP2[i], x, y, 1 + nivelFogoP2)) return true;
+    }
+    return false;
 }
-// procedimento para executar as acoes do jogador no mapa
+
+void movimentaIA(EstadoJogo& jogo, Jogador& bot, Bomba minhasBombas[], Bomba inimigoBombas[], int meuFogo, int inimigoFogo, Inimigo inimigos[]) {
+    if (!bot.vivo) return;
+
+    int dx[] = {-1, 1, 0, 0};
+    int dy[] = {0, 0, -1, 1};
+
+    // 1. AVALIA PERIGO IMINENTE
+    bool perigoAtual = ehAreaPerigosa(jogo, bot.x, bot.y, minhasBombas, inimigoBombas, meuFogo, inimigoFogo);
+    for(int k=0; k<jogo.inimigosAtivos; k++) {
+        if(inimigos[k].vivo && abs(inimigos[k].x - bot.x) + abs(inimigos[k].y - bot.y) <= 1) perigoAtual = true;
+    }
+
+    // 2. MAPEAR CASAS 100% SEGURAS AO REDOR
+    int casasSeguras[4];
+    int numSeguras = 0;
+    for(int i=0; i<4; i++) {
+        int nx = bot.x + dx[i];
+        int ny = bot.y + dy[i];
+
+        if(!celulaBloqueia(jogo, bot, nx, ny) &&
+           !ehAreaPerigosa(jogo, nx, ny, minhasBombas, inimigoBombas, meuFogo, inimigoFogo)) {
+            bool temInimigo = false;
+            for(int k=0; k<jogo.inimigosAtivos; k++) {
+                if(inimigos[k].vivo && abs(inimigos[k].x - nx) + abs(inimigos[k].y - ny) <= 1) temInimigo = true;
+            }
+            if(!temInimigo) casasSeguras[numSeguras++] = i;
+        }
+    }
+
+    // 3. MODO FUGA E PÂNICO
+    if(perigoAtual) {
+        if(numSeguras > 0) {
+            // Foge para uma casa totalmente segura
+            int escolha = casasSeguras[rand() % numSeguras];
+            bot.x += dx[escolha];
+            bot.y += dy[escolha];
+            bot.qtdMovimentos++;
+        } else {
+            // MODO PÂNICO: Está na área da bomba e não há casa 100% segura adjacente!
+            // Procura a bomba mais próxima e dá um passo na direção contrária a ela.
+            int bx = bot.x, by = bot.y;
+            int minDist = 999;
+            for(int i=0; i<5; i++) {
+                if(minhasBombas[i].ativa || minhasBombas[i].explosaoAtiva) {
+                    int dist = abs(bot.x - minhasBombas[i].x) + abs(bot.y - minhasBombas[i].y);
+                    if(dist < minDist) { minDist = dist; bx = minhasBombas[i].x; by = minhasBombas[i].y; }
+                }
+                if(inimigoBombas[i].ativa || inimigoBombas[i].explosaoAtiva) {
+                    int dist = abs(bot.x - inimigoBombas[i].x) + abs(bot.y - inimigoBombas[i].y);
+                    if(dist < minDist) { minDist = dist; bx = inimigoBombas[i].x; by = inimigoBombas[i].y; }
+                }
+            }
+
+            int melhorFuga = -1;
+            int maxDistParaBomba = minDist;
+            for(int i=0; i<4; i++) {
+                int nx = bot.x + dx[i];
+                int ny = bot.y + dy[i];
+                if(!celulaBloqueia(jogo, bot, nx, ny)) {
+                    int distBomba = abs(nx - bx) + abs(ny - by);
+                    if(distBomba > maxDistParaBomba) { // Escolhe o caminho que afasta da bomba
+                        maxDistParaBomba = distBomba;
+                        melhorFuga = i;
+                    }
+                }
+            }
+            if(melhorFuga != -1) {
+                bot.x += dx[melhorFuga];
+                bot.y += dy[melhorFuga];
+                bot.qtdMovimentos++;
+            }
+        }
+        return; // Foge e aborta qualquer outra ação
+    }
+
+    // 4. MODO ATAQUE
+    bool temAlvoPerto = false;
+    for(int i=0; i<4; i++) {
+        int nx = bot.x + dx[i];
+        int ny = bot.y + dy[i];
+        if(jogo.mapa[nx][ny] == 2) temAlvoPerto = true;
+        for(int k=0; k<jogo.inimigosAtivos; k++) {
+            if(inimigos[k].vivo && inimigos[k].x == nx && inimigos[k].y == ny) temAlvoPerto = true;
+        }
+    }
+
+    if(temAlvoPerto) {
+        int ativas = 0, indexLivre = -1;
+        for(int i = 0; i < 5; i++) {
+            if(minhasBombas[i].ativa || minhasBombas[i].explosaoAtiva) ativas++;
+            else if(indexLivre == -1) indexLivre = i;
+        }
+        if(ativas < bot.pus.qtdBombas && indexLivre != -1) {
+            minhasBombas[indexLivre].ativa = true;
+            minhasBombas[indexLivre].x = bot.x;
+            minhasBombas[indexLivre].y = bot.y;
+            minhasBombas[indexLivre].tempoPlantada = chrono::steady_clock::now();
+            minhasBombas[indexLivre].ehRelogio = bot.pus.temRelogio;
+            return;
+        }
+    }
+
+    // 5. MODO CAÇA AOS ITENS
+    int distMin = 9999;
+    int melhorMove = -1;
+    for(int i=0; i<numSeguras; i++) {
+        int nx = bot.x + dx[casasSeguras[i]];
+        int ny = bot.y + dy[casasSeguras[i]];
+
+        for(int p = 0; p < jogo.totalPowerUps; p++) {
+            if(jogo.powerUps[p].ativo) {
+                int dist = abs(nx - jogo.powerUps[p].x) + abs(ny - jogo.powerUps[p].y);
+                if(dist < distMin) {
+                    distMin = dist;
+                    melhorMove = casasSeguras[i];
+                }
+            }
+        }
+    }
+
+    if(melhorMove != -1) {
+        bot.x += dx[melhorMove];
+        bot.y += dy[melhorMove];
+        bot.qtdMovimentos++;
+    } else if(numSeguras > 0) {
+        int escolha = casasSeguras[rand() % numSeguras];
+        bot.x += dx[escolha];
+        bot.y += dy[escolha];
+        bot.qtdMovimentos++;
+    }
+}
 // procedimento para executar as acoes do jogador no mapa
 void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], Bomba bombasP2[]) {
     int tecla;
@@ -616,21 +743,8 @@ bool temInimigoNaCasa(int x, int y, int indexAtual, Inimigo inimigos[], unsigned
     return false;
 }
 
-bool ehAreaPerigosa(EstadoJogo& jogo, int x, int y, Bomba bombasP1[], Bomba bombasP2[], int nivelFogoP1, int nivelFogoP2) {
-    // Verifica todas as bombas do P1
-    for(int i = 0; i < 5; i++) {
-        // Se a bomba está plantada, a área de fogo futura é perigosa
-        if (bombasP1[i].ativa && celulaNaExplosao(jogo, bombasP1[i], x, y, 1 + nivelFogoP1)) return true;
-        // Se já está explodindo, a área de fogo atual é perigosa
-        if (bombasP1[i].explosaoAtiva && celulaNaExplosao(jogo, bombasP1[i], x, y, 1 + nivelFogoP1)) return true;
-    }
-    // Verifica todas as bombas do P2
-    for(int i = 0; i < 5; i++) {
-        if (bombasP2[i].ativa && celulaNaExplosao(jogo, bombasP2[i], x, y, 1 + nivelFogoP2)) return true;
-        if (bombasP2[i].explosaoAtiva && celulaNaExplosao(jogo, bombasP2[i], x, y, 1 + nivelFogoP2)) return true;
-    }
-    return false;
-}
+
+
 void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba bombasP1[], Bomba bombasP2[], Jogador& p1, Jogador& p2, unsigned selDificuldade){
 
     int chancePerseguicao;
@@ -1398,13 +1512,20 @@ int main() {
                         imprimeMapa(jogo, p1, p2, bombasP1, bombasP2, inimigos, selDificuldade);
 
                         // --- VERIFICA QUEM ESTÁ JOGANDO ---
+                        static auto tempoBots = chrono::steady_clock::now(); // Cria o relógio do bot
+
                         if (jogo.modoJogo == 1 || jogo.modoJogo == 2) {
                             executaMovimentos(jogo, p1, p2, bombasP1, bombasP2);
                         } else if (jogo.modoJogo == 3) {
-                            movimentaIA(jogo, p1, bombasP1);
-                            movimentaIA(jogo, p2, bombasP2);
-                            coletaPowerUp(jogo, p1);
-                            coletaPowerUp(jogo, p2);
+                            auto tempoAtual_bots = chrono::steady_clock::now();
+                            // O bot só pensa e age a cada 250 milissegundos
+                            if(chrono::duration_cast<chrono::milliseconds>(tempoAtual_bots - tempoBots).count() >= 250) {
+                                movimentaIA(jogo, p1, bombasP1, bombasP2, p1.pus.nivelFogo, p2.pus.nivelFogo, inimigos);
+                                movimentaIA(jogo, p2, bombasP2, bombasP1, p2.pus.nivelFogo, p1.pus.nivelFogo, inimigos);
+                                coletaPowerUp(jogo, p1);
+                                coletaPowerUp(jogo, p2);
+                                tempoBots = chrono::steady_clock::now(); // Reseta o timer
+                            }
                         }
 
                         this_thread::sleep_for(chrono::milliseconds(30));
