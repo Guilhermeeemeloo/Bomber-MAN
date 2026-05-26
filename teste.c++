@@ -875,7 +875,7 @@ void detonaBomba(EstadoJogo& jogo, Bomba& bomba, Jogador& autor, Jogador& p1, Jo
 
         if(bomba.ehRelogio == false && duracao >= 3000) {
             bomba.ativa = false;
-            destruiCaixasComDrop(jogo, p1, bomba);
+            destruiCaixasComDrop(jogo, autor, bomba);
             int raio = 1 + autor.pus.nivelFogo;
 
             for(int k = 0; k < jogo.inimigosAtivos; k++) {
