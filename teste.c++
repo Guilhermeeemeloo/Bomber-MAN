@@ -645,8 +645,17 @@ void movimentaInimigos(EstadoJogo& jogo, Inimigo inimigos[], Bomba bombasP1[], B
         if(inimigos[k].passos == 0) {
 
             if(inimigos[k].boss == true) {
-                int diffX = p1.x - inimigos[k].x;
-                int diffY = p1.y - inimigos[k].y;
+                Jogador* alvoBoss = &p1;
+                if (jogo.modoJogo >= 2) {
+                    if (!p1.vivo && p2.vivo) alvoBoss = &p2;
+                    else if (p1.vivo && p2.vivo) {
+                        int distP1 = abs(p1.x - inimigos[k].x) + abs(p1.y - inimigos[k].y);
+                        int distP2 = abs(p2.x - inimigos[k].x) + abs(p2.y - inimigos[k].y);
+                        if (distP2 < distP1) alvoBoss = &p2;
+                    }
+                }
+                int diffX = alvoBoss->x - inimigos[k].x;
+                int diffY = alvoBoss->y - inimigos[k].y;
 
                 int dirX = (diffX > 0) ? 1 : 0;
                 int dirY = (diffY > 0) ? 3 : 2;
@@ -1403,7 +1412,13 @@ int main() {
                         auto tempoAtual_inimigos = chrono::steady_clock::now();
                         auto duracaoInimigos = chrono::duration_cast < chrono::milliseconds>(tempoAtual_inimigos - tempoInimigos).count();
 
-                        if(duracaoInimigos >= 500) {
+                        // Define a velocidade baseada na dificuldade escolhida
+                        int velocidadeInimigos = 500;
+                        if (selDificuldade == 1)      velocidadeInimigos = 500; // Fácil: Inimigos lerdos
+                        else if (selDificuldade == 2) velocidadeInimigos = 350; // Médio: Velocidade normal
+                        else if (selDificuldade == 3) velocidadeInimigos = 200; // Difícil: Inimigos muito rápidos! (Hardcore)
+
+                        if(duracaoInimigos >= velocidadeInimigos) {
                             movimentaInimigos(jogo, inimigos, bombasP1, bombasP2, p1, p2, selDificuldade);
                             tempoInimigos = chrono::steady_clock::now();
                         }
