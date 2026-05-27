@@ -291,10 +291,6 @@ double calculaPontuacao(Jogador& p1) {
     return pontosBase * bonusBomba * penalidade;
 }
 
-// ============================================================
-// FUNÇÕES DO SISTEMA DE POWER-UPS
-// ============================================================
-
 // Inicializa os atributos padrão de power-ups do jogador
 void inicializaPowerUpsJogador(Jogador& p1) {
     p1.pus.nivelFogo    = 0;
@@ -1325,7 +1321,7 @@ void imprimeTela(bool vencedor){
     }
 }
 
-void salvaRanking(Jogador p1, EstadoJogo jogo){
+void salvaRanking(Jogador p1, Jogador p2, EstadoJogo jogo) {
 
     auto tempoFinal = chrono::steady_clock::now();
     int tempoTotal = chrono::duration_cast<chrono::seconds>(tempoFinal - jogo.tempoInicio).count();
@@ -1335,18 +1331,30 @@ void salvaRanking(Jogador p1, EstadoJogo jogo){
     char dataAtual[11];
     strftime(dataAtual, sizeof(dataAtual), "%d/%m/%Y", now);
 
-    string nomeJogador;
-    cout << "\n\n\nDIGITE SEU PRIMEIRO NOME: ";
-    cout << "\033[J";
-    cin >> nomeJogador;
+    auto salva = [&](Jogador& p, string nome) {
+        ofstream arqRank;
+        arqRank.open("ranking.txt", ios::app);
+        if(arqRank.is_open()) {
+            arqRank << dataAtual << "\t" << nome << "\t" << tempoTotal << "\t"
+                    << p.qtdMovimentos << "\t" << p.bombasUsadas << "\t" << p.pontuacao << "\n";
+            arqRank.close();
+        } else {
+            cout << "Erro ao salvar!!!" << endl;
+        }
+    };
 
-    ofstream arqRank;
-    arqRank.open("ranking.txt", ios::app);
-    if(arqRank.is_open()){
-        arqRank << dataAtual << "\t" << nomeJogador << "\t" << tempoTotal << "\t" << p1.qtdMovimentos << "\t" << p1.bombasUsadas << "\t" << p1.pontuacao << "\n";
-        arqRank.close();
-    }else{
-        cout << "Erro ao salvar!!!" << endl;
+    string nome1;
+    cout << "\n\n\nP1 - DIGITE SEU PRIMEIRO NOME: ";
+    cout << "\033[J";
+    cin >> nome1;
+    salva(p1, nome1);
+
+    if(jogo.modoJogo == 2) {
+        string nome2;
+        cout << "P2 - DIGITE SEU PRIMEIRO NOME: ";
+        cout << "\033[J";
+        cin >> nome2;
+        salva(p2, nome2);
     }
 }
 
@@ -1561,7 +1569,7 @@ int main() {
 
                     imprimeTela(jogo.vencedor);
                     if (jogo.modoJogo != 3) { // Se foram bots jogando, não faz sentido salvar no ranking
-                        salvaRanking(p1, jogo);
+                        salvaRanking(p1, p2, jogo);
                     }
 
                     cout << "PRESSIONE QUALQUER TECLA PARA VOLTAR A TELA INICIAL";
@@ -1619,54 +1627,72 @@ int main() {
                     #endif
 
                     imprimeTela();
-                    cout << "\033[J";
+                        cout << "\033[J";
 
-                    cout << "\n\033[36m===\t COMO JOGAR\t===\033[0m\n\n";
+                        cout << "\n\033[36m===\t COMO JOGAR\t===\033[0m\n\n";
 
-                    cout << "\033[33mCONTROLES:\033[0m\n";
-                    cout << "  W / Seta Cima    -> Mover para cima\n";
-                    cout << "  S / Seta Baixo   -> Mover para baixo\n";
-                    cout << "  A / Seta Esquerda-> Mover para esquerda\n";
-                    cout << "  D / Seta Direita -> Mover para direita\n";
-                    cout << "  X                -> Plantar bomba\n";
+                        cout << "\033[33mMODOS DE JOGO:\033[0m\n";
+                        cout << "  1 - 1 Jogador          -> Voce contra os inimigos\n";
+                        cout << "  2 - 2 Jogadores (Coop) -> P1 (WASD) e P2 (Setas) juntos\n";
+                        cout << "  3 - PC vs PC           -> Dois bots jogam automaticamente\n";
 
-                    cout << "\n\033[33mITENS DO MAPA:\033[0m\n";
-                    cout << "  \033[42m🧔\033[0m  Voce\n";
-                    cout << "  \033[42m👹\033[0m  Inimigo - evite o contato!\n";
-                    cout << "  \033[42m💣\033[0m  Bomba plantada - explode em 3 segundos.\n";
-                    cout << "  \033[103m💥\033[0m  Explosao - mata inimigos e destroi caixas.\n";
-                    cout << "  \033[42m🧱\033[0m  Caixa destruivel pela bomba.\n";
-                    cout << "  \033[47m  \033[0m  Parede solida - nao e destruivel.\n";
+                        cout << "\n\033[33mCONTROLES - JOGADOR 1:\033[0m\n";
+                        cout << "  W  -> Mover para cima\n";
+                        cout << "  S  -> Mover para baixo\n";
+                        cout << "  A  -> Mover para esquerda\n";
+                        cout << "  D  -> Mover para direita\n";
+                        cout << "  X  -> Plantar bomba\n";
+                        cout << "  C  -> Detonar bomba-relogio\n";
 
-                    cout << "\n\033[33mPOWER-UPS (dropam de caixas destruidas):\033[0m\n";
-                    cout << "  🔥 Fogo+     -> Aumenta raio de explosao (+1, cumulativo)\n";
-                    cout << "  💣 Bomba+    -> Aumenta qtd de bombas simultaneas (cumulativo)\n";
-                    cout << "  ❤️  Vida+     -> Vida extra, sobrevive a um dano (cumulativo)\n";
-                    cout << "  ⏰ Relogio  -> Proxima bomba explode instantaneamente\n";
-                    cout << "  🛡️  Escudo    -> Absorve um dano de bomba ou inimigo\n";
-                    cout << "  👻 Fantasma -> Atravessa caixas destruiveis temporariamente\n";
-                    cout << "  OBS: power-ups RESETAM ao avancar de fase!\n";
+                        cout << "\n\033[33mCONTROLES - JOGADOR 2:\033[0m\n";
+                        cout << "  Seta Cima    -> Mover para cima\n";
+                        cout << "  Seta Baixo   -> Mover para baixo\n";
+                        cout << "  Seta Esquerda-> Mover para esquerda\n";
+                        cout << "  Seta Direita -> Mover para direita\n";
+                        cout << "  0            -> Plantar bomba\n";
+                        cout << "  1            -> Detonar bomba-relogio\n";
 
-                    cout << "\n\033[33mOBJETIVO:\033[0m\n";
-                    cout << "  Elimine todos os inimigos usando bombas para vencer!\n";
-                    cout << "  Cuidado para nao se explodir!\n";
+                        cout << "\n\033[33mITENS DO MAPA:\033[0m\n";
+                        cout << "  \033[42m👳🏻‍♂️\033[0m  Jogador 1\n";
+                        cout << "  \033[42m🥷\033[0m  Jogador 2\n";
+                        cout << "  \033[42m👹\033[0m  Inimigo comum - evite o contato!\n";
+                        cout << "  \033[42m👺\033[0m  Boss (fase 3) - persegue voce sempre!\n";
+                        cout << "  \033[42m💣\033[0m  Bomba plantada - explode em 3 segundos.\n";
+                        cout << "  \033[103m💥\033[0m  Explosao - mata inimigos e destroi caixas.\n";
+                        cout << "  \033[42m🧱\033[0m  Caixa destruivel pela bomba.\n";
+                        cout << "  \033[47m  \033[0m  Parede solida - nao e destruivel.\n";
+                        cout << "  \033[45m🕌\033[0m  Portal - aparece ao eliminar todos os inimigos.\n";
 
-                    cout << "\n\033[33mDIFICULDADE:\033[0m\n";
-                    cout << "  Facil        -> 3 inimigos, movimento aleatorio\n";
-                    cout << "  Intermediario-> 5 inimigos, 50%% de chance de te perseguir\n";
-                    cout << "  Dificil      -> 7 inimigos, 75%% de chance de te perseguir\n";
+                        cout << "\n\033[33mPOWER-UPS (dropam de caixas destruidas - 40%% de chance):\033[0m\n";
+                        cout << "  🔥 Fogo+     -> Aumenta raio de explosao (+1, cumulativo)\n";
+                        cout << "  💣 Bomba+    -> Aumenta qtd de bombas simultaneas (cumulativo)\n";
+                        cout << "  ❤️  Vida+     -> Vida extra, sobrevive a mais um dano (cumulativo)\n";
+                        cout << "  ⏰ Relogio  -> Bomba so explode ao detonar manualmente (C / tecla 1)\n";
+                        cout << "  🛡️  Escudo    -> Absorve um dano de bomba ou inimigo\n";
+                        cout << "  👻 Fantasma -> Atravessa caixas destruiveis\n";
+                        cout << "  OBS: power-ups RESETAM ao avancar de fase!\n";
 
-                    cout << "\n\033[33mPONTUACAO:\033[0m\n";
-                    cout << "  Cada inimigo abatido    -> +100 pontos\n";
-                    cout << "  Cada caixa destruida    -> +10 pontos\n";
-                    cout << "  Bonus por eficiencia:\n";
-                    cout << "    1+ inimigo por bomba  -> x2.0\n";
-                    cout << "    1 inimigo a cada 2    -> x1.5\n";
-                    cout << "    Abaixo disso          -> x1.0\n";
-                    cout << "  Penalidade de movimento:\n";
-                    cout << "    A cada 50 movimentos  -> -5%% (maximo -40%%)\n";
+                        cout << "\n\033[33mOBJETIVO:\033[0m\n";
+                        cout << "  Elimine todos os inimigos para abrir o portal e avance de fase!\n";
+                        cout << "  Sobreviva ate a fase 3 e derrote o Boss para vencer!\n";
+                        cout << "  Cuidado para nao se explodir!\n";
 
-                    cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
+                        cout << "\n\033[33mDIFICULDADE:\033[0m\n";
+                        cout << "  Facil        -> 3 inimigos, movimento aleatorio, velocidade lenta\n";
+                        cout << "  Intermediario-> 5 inimigos, 50%% de chance de perseguir\n";
+                        cout << "  Dificil      -> 7 inimigos, 75%% de chance de perseguir, muito rapidos\n";
+
+                        cout << "\n\033[33mPONTUACAO:\033[0m\n";
+                        cout << "  Cada inimigo abatido    -> +100 pontos\n";
+                        cout << "  Cada caixa destruida    -> +10 pontos\n";
+                        cout << "  Bonus por eficiencia:\n";
+                        cout << "    1+ inimigo por bomba  -> x2.0\n";
+                        cout << "    1 inimigo a cada 2    -> x1.5\n";
+                        cout << "    Abaixo disso          -> x1.0\n";
+                        cout << "  Penalidade de movimento:\n";
+                        cout << "    A cada 50 movimentos  -> -5%% (maximo -40%%)\n";
+
+                        cout << "\n\nPRESSIONE QUALQUER TECLA PARA VOLTAR AO MENU...";
                     while(_kbhit()) { getch(); }
                         cin.clear();
                         getch();
