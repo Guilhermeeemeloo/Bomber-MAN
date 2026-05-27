@@ -97,9 +97,6 @@ using namespace std;
 
 const unsigned maxInimigos = 10;
 
-// ============================================================
-// SISTEMA DE POWER-UPS
-// ============================================================
 // Tipos de power-up
 enum TipoPowerUp {
     PU_FOGO,        // Aumenta raio de fogo (+1, cumulativo)
@@ -142,13 +139,13 @@ const int maxPowerUps = 30;
 struct PowerUpsJogador {
     int nivelFogo;      // raio extra de explosão (default 0)
     int qtdBombas;      // bombas simultâneas permitidas (default 1)
-    int vidas;          // <--- MUDOU DE vidasExtra para vidas
-    bool temRelogio;    // próxima bomba explode pelo controle
+    int vidas;          // vezes que o personagem pode morrer e spawnar sem dar game over (default 1)
+    bool temRelogio;    // jogador ganha poder sobre quando a bomba explodirá
     int escudos;        // escudos que absorvem dano (default 0)
     bool temFantasma;   // pode atravessar caixas (default false)
 };
-// ============================================================
 
+// uso de template num bubble sort para ordenação do ranking (case 4 na main)
 template <typename T>
 void troca(T& a, T& b) {
     T temporario = a;
@@ -358,9 +355,7 @@ void aplicaPowerUp(Jogador& p1, TipoPowerUp tipo) {
 // Verifica se o jogador está sobre algum power-up e o coleta
 void coletaPowerUp(EstadoJogo& jogo, Jogador& p1) {
     for(int i = 0; i < jogo.totalPowerUps; i++) {
-        if(jogo.powerUps[i].ativo &&
-           jogo.powerUps[i].x == p1.x &&
-           jogo.powerUps[i].y == p1.y) {
+        if(jogo.powerUps[i].ativo && jogo.powerUps[i].x == p1.x && jogo.powerUps[i].y == p1.y){
             aplicaPowerUp(p1, jogo.powerUps[i].tipo);
             jogo.powerUps[i].ativo = false;
         }
@@ -382,8 +377,9 @@ bool celulaBloqueia(EstadoJogo& jogo, Jogador& p1, int x, int y) {
     if(cel == 2 && !p1.pus.temFantasma) return true; // caixa: bloqueia sem fantasma
     return false;
 }
-// ============================================================
+// protótipo de função usada em imprimeMapa para não ter que reorganizar as ordens das funções ;)
 bool celulaNaExplosao(EstadoJogo& jogo, Bomba& bomba, int x, int y, int raio);
+
 // procedimento para desenhar o mapa do jogo
 void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], Bomba bombasP2[], Inimigo inimigos[], unsigned selDificuldade = 1){
     string corChao = "\033[42m";
@@ -394,20 +390,20 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
         for(int j=0; j<25; j++) {
             bool naExplosao = false;
 
-            // Verifica fogo do P1
+            // Verifica se em determinada posição do mapa será desenhado o fogo da explosao da bomba do P1
             for(int b = 0; b < 5; b++) {
                 if(bombasP1[b].explosaoAtiva && celulaNaExplosao(jogo, bombasP1[b], i, j, 1 + p1.pus.nivelFogo)) {
                     naExplosao = true; break;
                 }
             }
-            // Verifica fogo do P2
+            // Verifica se em determinada posição do mapa será desenhado o fogo da explosao da bomba do P2
             for(int b = 0; b < 5; b++) {
                 if(!naExplosao && bombasP2[b].explosaoAtiva && celulaNaExplosao(jogo, bombasP2[b], i, j, 1 + p2.pus.nivelFogo)) {
                     naExplosao = true; break;
                 }
             }
 
-            // Verifica se a célula atual tem uma bomba plantada
+            // Verifica se a posição atual tem uma bomba plantada
             bool temBombaPlatada = false;
             for(int b = 0; b < 5; b++) {
                 if(bombasP1[b].ativa && i == bombasP1[b].x && j == bombasP1[b].y) { temBombaPlatada = true; break; }
@@ -415,26 +411,29 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
             }
 
             if(naExplosao) {
-                cout << "\033[103m💥\033[0m";
+                cout << "\033[103m💥\033[0m"; //fogo da explosao
             } else if(i==p1.x && j==p1.y) {
-                if(p1.vivo == true) cout << corChao << "👳🏻‍♂️\033[0m";
-                else cout << corChao << "🪦\033[0m";
-            } else if(jogo.modoJogo >= 2 && i==p2.x && j==p2.y) {
-                if(p2.vivo == true) cout << corChao << "🥷\033[0m";
-                else cout << corChao << "🪦\033[0m";
+                if(p1.vivo == true) cout << corChao << "👳🏻‍♂️\033[0m"; //p1
+                else cout << corChao << "🪦\033[0m"; // lapide do p1 morto
+            } else if(jogo.modoJogo == 2 && i==p2.x && j==p2.y) {
+                if(p2.vivo == true) cout << corChao << "🥷\033[0m"; //p2
+                else cout << corChao << "🪦\033[0m"; //lapide do p2 morto
             } else if(temBombaPlatada) {
-                cout << corChao << "💣\033[0m";
+                cout << corChao << "💣\033[0m"; //bomba plantada em contagem para explosao
             } else if(jogo.portalAtivo && i == jogo.portalX && j == jogo.portalY) {
-                cout << "\033[45m🕌\033[0m";
+                cout << "\033[45m🕌\033[0m"; //portal para proxima fase
             } else {
+                //verifica sem tem algum power up na posição
                 bool temPU = false;
                 int idxPU = -1;
                 for(int p = 0; p < jogo.totalPowerUps; p++) {
                     if(jogo.powerUps[p].ativo && jogo.powerUps[p].x == i && jogo.powerUps[p].y == j) {
-                        temPU = true; idxPU = p; break;
+                        temPU = true;
+                        idxPU = p; break;
                     }
                 }
 
+                //verifica se tem inimigo na posição da matriz e se ele é boss ou nao
                 bool inimigoAqui = false;
                 bool ehBoss = false;
                 for(int k = 0; k < jogo.inimigosAtivos; k++) {
@@ -446,15 +445,16 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
                 }
 
                 if(inimigoAqui) {
-                    if(ehBoss) cout << corChao << "👺";
-                    else       cout << corChao << "👹";
-                } else if(temPU) {
+                    if(ehBoss) cout << corChao << "👺"; //boss
+                    else       cout << corChao << "👹"; // inimigo comum
+
+                } else if(temPU) {// desenha o emoji do power up de acordo com o bloco de verificação anterior
                     cout << corChao << emojPowerUp[jogo.powerUps[idxPU].tipo] << "\033[0m";
                 } else {
                     switch (jogo.mapa[i][j]) {
-                    case 0: cout << corChao << "  \033[0m"; break;
-                    case 1: cout << "\033[47m  \033[0m";   break;
-                    case 2: cout << corChao << "🧱\033[0m"; break;
+                    case 0: cout << corChao << "  \033[0m"; break; //chão
+                    case 1: cout << "\033[107m  \033[0m";   break; // parede solida
+                    case 2: cout << corChao << "🧱\033[0m"; break; // parede quebravel
                     }
                 }
             }
@@ -473,7 +473,8 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
     int segundos = tempoDecorrido % 60;
 
     cout << "\t\033[33mTEMPO DE JOGO: ";
-    if(minutos > 0)  { cout << minutos << "m "; if(segundos < 10) cout << "0"; }
+    if(minutos > 0)  {
+        cout << minutos << "m "; if(segundos < 10) cout << "0"; }
     else             { cout << "00m "; if(segundos < 10) cout << "0"; }
     cout << segundos << "s ";
 
@@ -486,7 +487,7 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
     if(p1.pus.temFantasma)     cout << " | 👻FANTASMA";
     cout << "\033[0m";
 
-    if (jogo.modoJogo >= 2) {
+    if (jogo.modoJogo == 2) {
         cout << "\n\033[36m[P2] MOVIMENTOS: " << p2.qtdMovimentos << " | INIMIGOS ABATIDOS: " << p2.inimigosAbatidos
              << "\n[P2] BOMBAS USADAS: " << p2.bombasUsadas << " | PONTOS: " << p2.pontuacao << "\033[0m";
         cout << "\n\033[35m[P2] POWER-UPS: 🔥x" << p2.pus.nivelFogo + 1 << " | 💣x" << p2.pus.qtdBombas << " | ❤️x" << p2.pus.vidas;
@@ -500,9 +501,11 @@ void imprimeMapa(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
 bool ehAreaPerigosa(EstadoJogo& jogo, int x, int y, Bomba bombasP1[], Bomba bombasP2[], int nivelFogoP1, int nivelFogoP2) {
     // Verifica todas as bombas do P1
     for(int i = 0; i < 5; i++) {
-        // Se a bomba está plantada, a área de fogo futura é perigosa
-        if (bombasP1[i].ativa && celulaNaExplosao(jogo, bombasP1[i], x, y, 1 + nivelFogoP1)) return true;
-        // Se já está explodindo, a área de fogo atual é perigosa
+        if(jogo.modoJogo == 3){
+            // Se a bomba está plantada, a área de fogo futura é perigosa
+            if (bombasP1[i].ativa && celulaNaExplosao(jogo, bombasP1[i], x, y, 1 + nivelFogoP1)) return true;
+        }
+        // Se já está explodindo, a área de fogo atual é perigosa, evita que inimigos entrem na area de fogo da explosao e reapareçam vivos
         if (bombasP1[i].explosaoAtiva && celulaNaExplosao(jogo, bombasP1[i], x, y, 1 + nivelFogoP1)) return true;
     }
     // Verifica todas as bombas do P2
@@ -588,15 +591,22 @@ void movimentaIA(EstadoJogo& jogo, Jogador& bot, Bomba minhasBombas[], Bomba ini
         return; // Foge e aborta qualquer outra ação
     }
 
-    // 4. MODO ATAQUE
+    // busca de alvos
     bool temAlvoPerto = false;
     for(int i=0; i<4; i++) {
+
         int nx = bot.x + dx[i];
+
         int ny = bot.y + dy[i];
+
         if(jogo.mapa[nx][ny] == 2) temAlvoPerto = true;
+
         for(int k=0; k<jogo.inimigosAtivos; k++) {
+
             if(inimigos[k].vivo && inimigos[k].x == nx && inimigos[k].y == ny) temAlvoPerto = true;
+
         }
+
     }
 
     if(temAlvoPerto) {
@@ -615,7 +625,7 @@ void movimentaIA(EstadoJogo& jogo, Jogador& bot, Bomba minhasBombas[], Bomba ini
         }
     }
 
-    // 5. MODO CAÇA AOS ITENS
+    // busca itens power up perto
     int distMin = 9999;
     int melhorMove = -1;
     for(int i=0; i<numSeguras; i++) {
@@ -690,7 +700,7 @@ void executaMovimentos(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP
                     }
                 }
             }
-        } // <--- A CHAVE QUE FALTAVA PARA FECHAR O P1 ESTÁ AQUI
+        }
 
         // --- CONTROLES DO JOGADOR 2 (Setas) ---
         if(p2.vivo) {
