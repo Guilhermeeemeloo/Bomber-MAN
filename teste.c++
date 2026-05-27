@@ -610,7 +610,7 @@ void movimentaIA(EstadoJogo& jogo, Jogador& bot, Bomba minhasBombas[], Bomba ini
             minhasBombas[indexLivre].x = bot.x;
             minhasBombas[indexLivre].y = bot.y;
             minhasBombas[indexLivre].tempoPlantada = chrono::steady_clock::now();
-            minhasBombas[indexLivre].ehRelogio = bot.pus.temRelogio;
+            minhasBombas[indexLivre].ehRelogio = false;
             return;
         }
     }
