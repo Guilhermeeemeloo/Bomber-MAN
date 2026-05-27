@@ -1057,6 +1057,7 @@ void avancaFase(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], Bo
 
     p1.x = 1;
     p1.y = 1;
+    p1.vivo = true;
     for(int i = 0; i < 5; i++) {
         bombasP1[i].ativa = false;
         bombasP1[i].explosaoAtiva = false;
@@ -1166,12 +1167,13 @@ void verificaFim(EstadoJogo& jogo, Jogador& p1, Jogador& p2, Bomba bombasP1[], B
             }
         } else {
             jogo.portalAtivo = true;
+            jogo.mapa[jogo.portalX][jogo.portalY] = 0;
         }
     }
 
     // Se ALGUÉM pisou no portal, avança
-    if(jogo.portalAtivo && ((p1.x == jogo.portalX && p1.y == jogo.portalY) || (p2.x == jogo.portalX && p2.y == jogo.portalY))) {
-        #ifdef _WIN32
+    if(jogo.portalAtivo && ((p1.vivo && p1.x == jogo.portalX && p1.y == jogo.portalY) || (p2.vivo && p2.x == jogo.portalX && p2.y == jogo.portalY))) {
+            #ifdef _WIN32
             COORD coord; coord.X = 0; coord.Y = 0;
             SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
         #else
@@ -1759,4 +1761,3 @@ int main() {
 
     return 0;
 }
-
